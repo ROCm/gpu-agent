@@ -1,4 +1,5 @@
-FROM ubuntu:22.04
+ARG BUILD_BASE_IMAGE=ubuntu:22.04
+FROM ${BUILD_BASE_IMAGE}
 
 RUN DEBIAN_FRONTEND=noninteractive \
   apt-get update && \
@@ -59,4 +60,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
   apt-get clean && \
   apt-get autoclean
 
-CMD ["/us//bin/bash"]
+ADD entrypoint.sh /usr/src/github.com/entrypoint.sh
+RUN chmod +x /usr/src/github.com/entrypoint.sh
+
+ENTRYPOINT ["/usr/src/github.com/entrypoint.sh"]

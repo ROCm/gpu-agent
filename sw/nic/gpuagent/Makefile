@@ -14,6 +14,7 @@
 # THE MATERIALS ARE DISTRIBUTED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
 # REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
+export AGENT_WORKDIR         := /usr/src/github.com/ROCm/gpu-agent
 export PIPELINE              := rudra
 export P4_PROGRAM            := pulsar
 export ASIC                  := salina
@@ -33,6 +34,7 @@ export CC                    := g++
 export PROTOC                := protoc
 
 export SPDLOG_INC_DIR        ?= ${TOPDIR}/nic/third-party/spdlog/include
+export SMI_LIB_DIR           ?= ${TOPDIR}/nic/third-party/rocm/amd_smi_lib/x86_64/lib
 export PROTOBUF_INCLUDE      := /usr/local/include
 export GRPC_INCLUDE          := ${PROTOBUF_INCLUDE} /usr/local/include/grpc/include
 export GRPC_CPP_PLUGIN       := /usr/local/bin/grpc_cpp_plugin
@@ -86,7 +88,7 @@ OBJ_DIR         := $(BLD_OUT_DIR)/$(TARGET)_bin
 OBJ             := $(patsubst $(TOPDIR)/%, $(OBJ_DIR)/%, $(SRC:.cc=.o))
 OBJ             += $(patsubst $(TOPDIR)/%, $(OBJ_DIR)/%, $(SRC_C:.c=.o))
 INCS            := $(addprefix -I,${INC})
-LDFLAGS         := -pthread -rdynamic -no-canonical-prefixes -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--build-id=md5 -Wl,--hash-style=gnu -L$(BLD_LIB_DIR) -Wl,-rpath,$(BLD_LIB_DIR) -Wl,-rpath-link,$(BLD_LIB_DIR) \
+LDFLAGS         := -pthread -rdynamic -no-canonical-prefixes -Wl,--gc-sections -Wl,-z,relro,-z,now -Wl,--build-id=md5 -Wl,--hash-style=gnu -L$(BLD_LIB_DIR) -Wl,-rpath,$(BLD_LIB_DIR) -Wl,-rpath-link,$(BLD_LIB_DIR) -L$(SMI_LIB_DIR) \
                    -l:libprotobuf.so -lgrpc++_reflection -lgrpc++ -lgrpc -lgpr -lupb -lcares \
                    -laddress_sorting -l:libgrpc.a -l:libre2.a -labsl_synchronization -labsl_periodic_sampler -labsl_time \
                    -labsl_time_zone -labsl_int128 -labsl_bad_optional_access -labsl_bad_any_cast_impl -labsl_bad_variant_access\
@@ -129,3 +131,25 @@ $(OBJ_DIR)/%.o: $(TOPDIR)/%.c
 
 clean:
 	rm -rf $(BLD_BIN_DIR) $(OBJ_DIR) $(BLD_PROTOGEN_DIR); sync
+
+docker-build:
+	docker image rm gpuagent-build || true
+	docker build --build-arg BUILD_BASE_IMAGE=$(BUILD_BASE_IMAGE) \
+		. -f Dockerfile-u22.04 -t gpuagent-build
+
+docker-compile:
+	docker run --rm -it --privileged \
+		-e "USER_NAME=$(shell whoami)" \
+		-e "USER_UID=$(shell id -u)" \
+		-e "USER_GID=$(shell id -g)" \
+		--name gpuagentbuild -v $(TOP_DIR):$(AGENT_WORKDIR) \
+		-w $(AGENT_WORKDIR) gpuagent-build
+
+docker-shell:
+	docker run --rm -itd --privileged \
+		-e "USER_NAME=$(shell whoami)" \
+		-e "USER_UID=$(shell id -u)" \
+		-e "USER_GID=$(shell id -g)" \
+		--name gpuagentbuild -v $(TOP_DIR):$(AGENT_WORKDIR) \
+		-w $(AGENT_WORKDIR) gpuagent-build \
+		"/bin/bash"
