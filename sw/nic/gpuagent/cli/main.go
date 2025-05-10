@@ -17,7 +17,7 @@
 
 package main
 
-import "github.com/pensando/sw/nic/gpuagent/cli/cmd"
+import "github.com/ROCm/gpu-agent/sw/nic/gpuagent/cli/cmd"
 
 func main() {
 	cmd.Execute()

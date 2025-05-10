@@ -31,8 +31,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pensando/sw/nic/gpuagent/cli/utils"
-	aga "github.com/pensando/sw/nic/gpuagent/gen/go"
+	"github.com/ROCm/gpu-agent/sw/nic/gpuagent/cli/utils"
+	aga "github.com/ROCm/gpu-agent/sw/nic/gpuagent/gen/go"
 )
 
 var deviceShowCmd = &cobra.Command{
