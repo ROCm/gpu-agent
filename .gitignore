@@ -1,3 +1,4 @@
 sw/nic/build/
 sw/nic/build*
 sw/nic/third-party/libev-4.33/*
+sw/nic/gpuagent/vendor

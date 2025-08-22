@@ -169,6 +169,15 @@ $(TARGET)_gim: build-libs gogo-protos gen-protos $(OBJ_GIM)
 	$(CC) $(OBJ_GIM) $(LDFLAGS_GIM_SMI) -o $(BLD_BIN_DIR)/$(TARGET)_gim
 	${MAKE} gpuctl
 
+.PHONY: mod
+mod:
+	@go mod tidy
+	@go mod edit -go=1.24.6
+	#CVE-2024-24790 - gpuctl
+	@go mod edit -replace golang.org/x/net@v0.30.0=golang.org/x/net@v0.38.0
+	@go mod vendor
+
+
 .PHONY: all
 all: build-libs gogo-protos gen-protos $(OBJ) $(OBJ_GIM) $(OBJ_MOCK)
 	mkdir -p $(BLD_BIN_DIR)

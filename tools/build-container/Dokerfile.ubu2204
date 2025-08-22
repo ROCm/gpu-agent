@@ -30,9 +30,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /usr/src/github.com/Rocm/gpu-agent/
 
-RUN wget https://go.dev/dl/go1.24.4.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.24.4.linux-amd64.tar.gz && \
-    rm -f go1.24.4.linux-amd64.tar.gz
+RUN wget https://go.dev/dl/go1.24.6.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.24.6.linux-amd64.tar.gz && \
+    rm -f go1.24.6.linux-amd64.tar.gz
 
 ADD ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
