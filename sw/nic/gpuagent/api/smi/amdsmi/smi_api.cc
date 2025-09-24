@@ -1016,6 +1016,7 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
     amdsmi_status_t amdsmi_ret;
     uint64_t sent, received, max_pkt_size;
     amdsmi_gpu_metrics_t metrics_info = {};
+    amdsmi_violation_status_t violation_status = {};
 
     // fill VRAM usage
     smi_fill_vram_usage_(gpu_handle, &stats->vram_usage);
@@ -1044,18 +1045,37 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
                 metrics_info.xgmi_write_data_acc[i];
         }
         // fill violation statistics
-        stats->violation_stats.current_accumulated_counter =
-            metrics_info.accumulation_counter;
-        stats->violation_stats.processor_hot_residency_accumulated =
-            metrics_info.prochot_residency_acc;
-        stats->violation_stats.ppt_residency_accumulated =
-            metrics_info.ppt_residency_acc;
-        stats->violation_stats.socket_thermal_residency_accumulated =
-            metrics_info.socket_thm_residency_acc;
-        stats->violation_stats.vr_thermal_residency_accumulated =
-            metrics_info.vr_thm_residency_acc;
-        stats->violation_stats.hbm_thermal_residency_accumulated =
-            metrics_info.hbm_thm_residency_acc;
+        amdsmi_ret = amdsmi_get_violation_status(gpu_handle, &violation_status);
+        if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to get violation status for GPU {}, err {}",
+                          gpu_handle, amdsmi_ret);
+            // revert to populating from metrics payload
+            stats->violation_stats.current_accumulated_counter =
+                metrics_info.accumulation_counter;
+            stats->violation_stats.processor_hot_residency_accumulated =
+                metrics_info.prochot_residency_acc;
+            stats->violation_stats.ppt_residency_accumulated =
+                metrics_info.ppt_residency_acc;
+            stats->violation_stats.socket_thermal_residency_accumulated =
+                metrics_info.socket_thm_residency_acc;
+            stats->violation_stats.vr_thermal_residency_accumulated =
+                metrics_info.vr_thm_residency_acc;
+            stats->violation_stats.hbm_thermal_residency_accumulated =
+                metrics_info.hbm_thm_residency_acc;
+        } else {
+            stats->violation_stats.current_accumulated_counter =
+                violation_status.acc_counter;
+            stats->violation_stats.processor_hot_residency_accumulated =
+                violation_status.acc_prochot_thrm;
+            stats->violation_stats.ppt_residency_accumulated =
+                violation_status.acc_ppt_pwr;
+            stats->violation_stats.socket_thermal_residency_accumulated =
+                violation_status.acc_socket_thrm;
+            stats->violation_stats.vr_thermal_residency_accumulated =
+                violation_status.acc_vr_thrm;
+            stats->violation_stats.hbm_thermal_residency_accumulated =
+                violation_status.acc_hbm_thrm;
+        }
         // get usage information from the metrics info for partition 0
         for (uint16_t i = 0; i < AMDSMI_MAX_NUM_VCN; i++) {
             stats->usage.vcn_activity[i] = metrics_info.vcn_activity[i];
