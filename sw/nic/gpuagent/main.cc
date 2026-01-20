@@ -19,7 +19,7 @@ limitations under the License.
 //----------------------------------------------------------------------------
 ///
 /// \file
-/// front-end agent for rdcd
+/// front-end agent for managing GPUs
 ///
 //----------------------------------------------------------------------------
 
@@ -32,6 +32,7 @@ limitations under the License.
 #include <iostream>
 #include <fstream>
 #include <grpc++/grpc++.h>
+#include <arpa/inet.h>
 #include "nic/sdk/include/sdk/base.hpp"
 #include "nic/sdk/include/sdk/assert.hpp"
 #include "nic/gpuagent/include/globals.hpp"
@@ -50,7 +51,8 @@ using grpc::Status;
 static void inline
 print_usage (char **argv)
 {
-    fprintf(stdout, "Usage : %s [-p <port> | --grpc-server-port <port>]\n\n",
+    fprintf(stdout, "Usage : %s [-p <port> | --grpc-server-port <port>] "
+            "[-i <ip-addr> | --grpc-server-ip <ip-addr>]\n\n",
             argv[0]);
     fprintf(stdout, "Use -h | --help for help\n");
 }
@@ -60,17 +62,21 @@ main (int argc, char **argv)
 {
     int oc;
     sdk_ret_t ret;
+    struct in6_addr ip_addr;
+    std::string grpc_server;
+    std::string grpc_server_ip;
+    std::string grpc_server_port;
     aga_init_params_t init_params = {};
     // command line options
     struct option longopts[] = {
         { "grpc-server-port", required_argument, NULL, 'p' },
-        { "rdc-server",       required_argument, NULL, 's' },
+        { "grpc-server-ip",   required_argument, NULL, 'i' },
         { "help",             no_argument,       NULL, 'h' },
         { 0,                  0,                 NULL,  0  }
     };
 
     // parse CLI options
-    while ((oc = getopt_long(argc, argv, ":hp:s:W;", longopts, NULL)) != -1) {
+    while ((oc = getopt_long(argc, argv, ":hp:i:", longopts, NULL)) != -1) {
         switch (oc) {
         case 'p':
             try {
@@ -86,18 +92,19 @@ main (int argc, char **argv)
                 print_usage(argv);
                 exit(1);
             }
-            init_params.grpc_server = std::string("0.0.0.0:") + optarg;
+            grpc_server_port = optarg;
             break;
 
-        case 's':
-            init_params.rdc_server = optarg;
-            if (init_params.rdc_server.empty()) {
-                fprintf(stderr, "rdcd server IP is not specified\n");
-                print_usage(argv);
-                exit(1);
+        case 'i':
+            if (inet_pton(AF_INET, optarg, &ip_addr) != 1) {
+                if (inet_pton(AF_INET6, optarg, &ip_addr) != 1) {
+                    fprintf(stderr, "Invalid gRPC server IP %s specified\n",
+                            optarg);
+                    print_usage(argv);
+                    exit(1);
+                }
             }
-            init_params.rdc_server +=
-                ":" + std::to_string(AGA_DEFAULT_RDC_GRPC_SERVER_PORT);
+            grpc_server_ip = optarg;
             break;
 
         case 'h':
@@ -110,16 +117,20 @@ main (int argc, char **argv)
             break;
         }
     }
-    // use default IP for rdc server if not specified
-    if (init_params.rdc_server.empty()) {
-        init_params.rdc_server =
-            "127.0.0.1:" + std::to_string(AGA_DEFAULT_RDC_GRPC_SERVER_PORT);
+    // use default IP for gRPC server if not specified
+    if (grpc_server_ip.empty()) {
+        grpc_server_ip = "127.0.0.1";
     }
-    // use default IP, port for gRPC server if not specified
-    if (init_params.grpc_server.empty()) {
-        init_params.grpc_server =
-            "0.0.0.0:" + std::to_string(AGA_DEFAULT_GRPC_SERVER_PORT);
+    // use default port for gRPC server if not specified
+    if (grpc_server_port.empty()) {
+        grpc_server_port = std::to_string(AGA_DEFAULT_GRPC_SERVER_PORT);
     }
+    grpc_server = grpc_server_ip + ":" + grpc_server_port;
+    // initialize the init params
+    strncpy(init_params.grpc_server, grpc_server.c_str(),
+            AGA_GRPC_SERVER_STR_LEN);
+    init_params.grpc_server[AGA_GRPC_SERVER_STR_LEN - 1] = '\0';
+
     // initialize the agent
     ret = aga_init(&init_params);
     SDK_ASSERT(ret == SDK_RET_OK);

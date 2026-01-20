@@ -23,23 +23,24 @@ limitations under the License.
 ///
 //----------------------------------------------------------------------------
 
-#ifndef __AGA_INIT_HPP__
-#define __AGA_INIT_HPP__
+#ifndef __AGA_INIT_H__
+#define __AGA_INIT_H__
 
 #include <string>
 #include "nic/sdk/include/sdk/base.hpp"
-#include "nic/gpuagent/api/include/aga_event.hpp"
-#include "nic/gpuagent/api/internal/aga_event.hpp"
 
 /// \defgroup AGA_INIT initialization APIs
 /// @{
 
+/// GPU agent external gRPC port
+#define AGA_DEFAULT_GRPC_SERVER_PORT          50061
+/// gRPC server:port string length
+#define AGA_GRPC_SERVER_STR_LEN               64
+
 /// \brief initialization parameters
 typedef struct aga_init_params_s {
     // gRPC server (IP:port)
-    std::string grpc_server;
-    // rdcd gRPC server (IP:port) to connect to
-    std::string rdc_server;
+    char grpc_server[AGA_GRPC_SERVER_STR_LEN];
 } aga_init_params_t;
 
 /// \brief    initialize the agent state, threads etc.
@@ -47,4 +48,4 @@ typedef struct aga_init_params_s {
 /// \return     SDK_RET_OK or error status in case of failure
 sdk_ret_t aga_init(aga_init_params_t *init_params);
 
-#endif    // __AGA_INIT_HPP__
+#endif    // __AGA_INIT_H__
