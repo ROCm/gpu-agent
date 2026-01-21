@@ -28,10 +28,6 @@ limitations under the License.
 
 #include "nic/sdk/include/sdk/globals.hpp"
 
-/// GPU agent external gRPC port
-#define AGA_DEFAULT_GRPC_SERVER_PORT          50061
-/// rdcd gRPC port gpuagent uses for communication
-#define AGA_DEFAULT_RDC_GRPC_SERVER_PORT      50051
 /// initial delay after which the heart beat punching starts
 #define AGA_HEARTBEAT_PUNCH_START_DELAY       10.0
 /// heart beat punching timeout in seconds
