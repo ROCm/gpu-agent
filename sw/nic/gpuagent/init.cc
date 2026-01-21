@@ -182,7 +182,7 @@ create_gpus (void)
 /// \brief    start the gRPC server
 /// \param[in] grpc_server    gRPC server (IP:port) string
 static void
-grpc_server_start (std::string grpc_server)
+grpc_server_start (const std::string& grpc_server)
 {
     GPUSvcImpl gpu_svc;
     TopoSvcImpl topo_svc;
