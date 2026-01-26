@@ -1066,6 +1066,29 @@ smi_state::watcher_init(void) {
     return ret;
 }
 
+sdk_ret_t
+smi_state::read_counter(aga_gpu_handle_t gpu_handle, uint64_t counter,
+                        uint64_t *value)
+{
+    uint64_t counter_key;
+    amdsmi_status_t amdsmi_ret;
+    amdsmi_counter_value_t counter_value;
+
+    *value = 0;
+    counter_key = reinterpret_cast<uint64_t>(gpu_handle) + counter;
+    auto it = counter_handle_.find(counter_key);
+    if (it != counter_handle_.end()) {
+        amdsmi_ret = amdsmi_gpu_read_counter(it->second, &counter_value);
+        if (amdsmi_ret != AMDSMI_STATUS_SUCCESS) {
+            AGA_TRACE_VERBOSE("Failed to read counter {} for GPU {}, err ()",
+                              counter, gpu_handle, amdsmi_ret);
+            return amdsmi_ret_to_sdk_ret(amdsmi_ret);
+        }
+        *value = counter_value.value;
+    }
+    return SDK_RET_INVALID_ARG;
+}
+
 static void
 watcher_thread_init_ (void *ctxt)
 {

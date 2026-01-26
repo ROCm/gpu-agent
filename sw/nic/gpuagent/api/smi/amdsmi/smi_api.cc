@@ -1216,6 +1216,7 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
         // power and voltage
         stats->avg_package_power = metrics_info.average_socket_power;
         stats->package_power = metrics_info.current_socket_power;
+        stats->power_usage = metrics_info.current_socket_power;
         stats->voltage.voltage = metrics_info.voltage_soc;
         stats->voltage.gfx_voltage = metrics_info.voltage_gfx;
         stats->voltage.memory_voltage = metrics_info.voltage_mem;
@@ -1314,6 +1315,35 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
         AGA_TRACE_ERR("Failed to get GPU metrics info for GPU {}, err {}",
                       gpu_handle, amdsmi_ret);
     }
+    // read xgmi stats
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_NOP_TX,
+                             &stats->xgmi_neighbor0_tx_nops);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_REQUEST_TX,
+                             &stats->xgmi_neighbor0_tx_requests);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_RESPONSE_TX,
+                             &stats->xgmi_neighbor0_tx_responses);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_BEATS_TX,
+                             &stats->xgmi_neighbor0_tx_beats);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_NOP_TX,
+                             &stats->xgmi_neighbor1_tx_nops);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_REQUEST_TX,
+                             &stats->xgmi_neighbor1_tx_requests);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_RESPONSE_TX,
+                             &stats->xgmi_neighbor1_tx_responses);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_BEATS_TX,
+                             &stats->xgmi_neighbor1_tx_beats);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_0,
+                             &stats->xgmi_neighbor0_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_1,
+                             &stats->xgmi_neighbor1_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_2,
+                             &stats->xgmi_neighbor2_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_3,
+                             &stats->xgmi_neighbor3_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_4,
+                             &stats->xgmi_neighbor4_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_5,
+                             &stats->xgmi_neighbor5_tx_throughput);
     // for GPU partitions which are not the first partition, we need to get
     // usage information from the first partition
     // partition
