@@ -153,64 +153,6 @@ gpu_entry::fill_stats_(aga_gpu_stats_t *stats) {
     if (child_gpus_.size()) {
         return;
     }
-    // fill stats stased from watch infra
-    stats->power_usage = stats_.power_usage;
-    stats->total_correctable_errors = stats_.total_correctable_errors;
-    stats->total_uncorrectable_errors = stats_.total_uncorrectable_errors;
-    stats->sdma_correctable_errors = stats_.sdma_correctable_errors;
-    stats->sdma_uncorrectable_errors = stats_.sdma_uncorrectable_errors;
-    stats->gfx_correctable_errors = stats_.gfx_correctable_errors;
-    stats->gfx_uncorrectable_errors = stats_.gfx_uncorrectable_errors;
-    stats->mmhub_correctable_errors = stats_.mmhub_correctable_errors;
-    stats->mmhub_uncorrectable_errors = stats_.mmhub_uncorrectable_errors;
-    stats->athub_correctable_errors = stats_.athub_correctable_errors;
-    stats->athub_uncorrectable_errors = stats_.athub_uncorrectable_errors;
-    stats->bif_correctable_errors = stats_.bif_correctable_errors;
-    stats->bif_uncorrectable_errors = stats_.bif_uncorrectable_errors;
-    stats->hdp_correctable_errors = stats_.hdp_correctable_errors;
-    stats->hdp_uncorrectable_errors = stats_.hdp_uncorrectable_errors;
-    stats->xgmi_wafl_correctable_errors = stats_.xgmi_wafl_correctable_errors;
-    stats->xgmi_wafl_uncorrectable_errors =
-        stats_.xgmi_wafl_uncorrectable_errors;
-    stats->df_correctable_errors = stats_.df_correctable_errors;
-    stats->df_uncorrectable_errors = stats_.df_uncorrectable_errors;
-    stats->smn_correctable_errors = stats_.smn_correctable_errors;
-    stats->smn_uncorrectable_errors = stats_.smn_uncorrectable_errors;
-    stats->sem_correctable_errors = stats_.sem_correctable_errors;
-    stats->sem_uncorrectable_errors = stats_.sem_uncorrectable_errors;
-    stats->mp0_correctable_errors = stats_.mp0_correctable_errors;
-    stats->mp0_uncorrectable_errors = stats_.mp0_uncorrectable_errors;
-    stats->mp1_correctable_errors = stats_.mp1_correctable_errors;
-    stats->mp1_uncorrectable_errors = stats_.mp1_uncorrectable_errors;
-    stats->fuse_correctable_errors = stats_.fuse_correctable_errors;
-    stats->fuse_uncorrectable_errors = stats_.fuse_uncorrectable_errors;
-    stats->umc_correctable_errors = stats_.umc_correctable_errors;
-    stats->umc_uncorrectable_errors = stats_.umc_uncorrectable_errors;
-    stats->mca_correctable_errors = stats_.mca_correctable_errors;
-    stats->mca_uncorrectable_errors = stats_.mca_uncorrectable_errors;
-    stats->vcn_correctable_errors = stats_.vcn_correctable_errors;
-    stats->vcn_uncorrectable_errors = stats_.vcn_uncorrectable_errors;
-    stats->jpeg_correctable_errors = stats_.jpeg_correctable_errors;
-    stats->jpeg_uncorrectable_errors = stats_.jpeg_uncorrectable_errors;
-    stats->ih_correctable_errors = stats_.ih_correctable_errors;
-    stats->ih_uncorrectable_errors = stats_.ih_uncorrectable_errors;
-    stats->mpio_correctable_errors = stats_.mpio_correctable_errors;
-    stats->mpio_uncorrectable_errors = stats_.mpio_uncorrectable_errors;
-    stats->xgmi_neighbor0_tx_nops = stats_.xgmi_neighbor0_tx_nops;
-    stats->xgmi_neighbor0_tx_requests = stats_.xgmi_neighbor0_tx_requests;
-    stats->xgmi_neighbor0_tx_responses = stats_.xgmi_neighbor0_tx_responses;
-    stats->xgmi_neighbor0_tx_beats = stats_.xgmi_neighbor0_tx_beats;
-    stats->xgmi_neighbor1_tx_nops = stats_.xgmi_neighbor1_tx_nops;
-    stats->xgmi_neighbor1_tx_requests = stats_.xgmi_neighbor1_tx_requests;
-    stats->xgmi_neighbor1_tx_responses = stats_.xgmi_neighbor1_tx_responses;
-    stats->xgmi_neighbor1_tx_beats = stats_.xgmi_neighbor1_tx_beats;
-    stats->xgmi_neighbor0_tx_throughput = stats_.xgmi_neighbor0_tx_throughput;
-    stats->xgmi_neighbor1_tx_throughput = stats_.xgmi_neighbor1_tx_throughput;
-    stats->xgmi_neighbor2_tx_throughput = stats_.xgmi_neighbor2_tx_throughput;
-    stats->xgmi_neighbor3_tx_throughput = stats_.xgmi_neighbor3_tx_throughput;
-    stats->xgmi_neighbor4_tx_throughput = stats_.xgmi_neighbor4_tx_throughput;
-    stats->xgmi_neighbor5_tx_throughput = stats_.xgmi_neighbor5_tx_throughput;
-
     // fetch stats from smi apis
     smi_gpu_fill_stats(handle_, partition_capable_,
         (partition_id_ == AGA_GPU_INVALID_PARTITION_ID) ? 0 : partition_id_,
