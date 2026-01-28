@@ -132,6 +132,14 @@ public:
         return (gpu_watch_subscriber_db_.gpu_watch_map.size() > 0);
      }
 
+     /// \brief    function to read counter
+     /// \param[in] gpu_handle  GPU handle
+     /// \param[in] counter     counter requested
+     /// \param[out] value      counter value
+     /// \return SDK_RET_OK or error status in case of failure
+     sdk_ret_t read_counter(aga_gpu_handle_t gpu_handle, uint64_t counter,
+                            uint64_t *value);
+
 private:
     /// \brief spawn event monitor thread
     /// \return SDK_RET_OK or error status in case of failure

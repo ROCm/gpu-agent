@@ -937,6 +937,148 @@ smi_gpu_get_bad_page_records (void *gpu_obj,
 }
 
 static sdk_ret_t
+smi_fill_ecc_stats_ (aga_gpu_handle_t gpu_handle,
+                     aga_gpu_stats_t *stats)
+{
+    amdsmi_error_count_t ec;
+    amdsmi_status_t amdsmi_ret;
+    uint64_t total_correctable_count = 0;
+    uint64_t total_uncorrectable_count = 0;
+    // get correctable and uncorrectable total error count beforehand
+    for (uint32_t b = AMDSMI_GPU_BLOCK_FIRST; b <= AMDSMI_GPU_BLOCK_LAST;
+         b = b * 2) {
+        // initialize ec to all 0s
+        ec = { 0 };
+        amdsmi_ret = amdsmi_get_gpu_ecc_count(gpu_handle,
+                                              (amdsmi_gpu_block_t)(b), &ec);
+        if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
+            total_correctable_count += ec.correctable_count;
+            total_uncorrectable_count += ec.uncorrectable_count;
+            switch (b) {
+            case AMDSMI_GPU_BLOCK_UMC:
+                stats->umc_correctable_errors =
+                    ec.correctable_count;
+                stats->umc_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_SDMA:
+                stats->sdma_correctable_errors =
+                    ec.correctable_count;
+                stats->sdma_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_GFX:
+                stats->gfx_correctable_errors =
+                    ec.correctable_count;
+                stats->gfx_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_MMHUB:
+                stats->mmhub_correctable_errors =
+                    ec.correctable_count;
+                stats->mmhub_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_ATHUB:
+                stats->athub_correctable_errors =
+                    ec.correctable_count;
+                stats->athub_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_PCIE_BIF:
+                stats->bif_correctable_errors =
+                    ec.correctable_count;
+                stats->bif_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_HDP:
+                stats->hdp_correctable_errors =
+                    ec.correctable_count;
+                stats->hdp_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_XGMI_WAFL:
+                stats->xgmi_wafl_correctable_errors =
+                    ec.correctable_count;
+                stats->xgmi_wafl_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_DF:
+                stats->df_correctable_errors =
+                    ec.correctable_count;
+                stats->df_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_SMN:
+                stats->smn_correctable_errors =
+                    ec.correctable_count;
+                stats->smn_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_SEM:
+                stats->sem_correctable_errors =
+                    ec.correctable_count;
+                stats->sem_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_MP0:
+                stats->mp0_correctable_errors =
+                    ec.correctable_count;
+                stats->mp0_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_MP1:
+                stats->mp1_correctable_errors =
+                    ec.correctable_count;
+                stats->mp1_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_FUSE:
+                stats->fuse_correctable_errors =
+                    ec.correctable_count;
+                stats->fuse_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_MCA:
+                stats->mca_correctable_errors =
+                    ec.correctable_count;
+                stats->mca_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_VCN:
+                stats->vcn_correctable_errors =
+                    ec.correctable_count;
+                stats->vcn_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_JPEG:
+                stats->jpeg_correctable_errors =
+                    ec.correctable_count;
+                stats->jpeg_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_IH:
+                stats->ih_correctable_errors =
+                    ec.correctable_count;
+                stats->ih_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            case AMDSMI_GPU_BLOCK_MPIO:
+                stats->mpio_correctable_errors =
+                    ec.correctable_count;
+                stats->mpio_uncorrectable_errors =
+                    ec.uncorrectable_count;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    stats->total_correctable_errors = total_correctable_count;
+    stats->total_uncorrectable_errors = total_uncorrectable_count;
+}
+
+static sdk_ret_t
 smi_fill_vram_usage_ (aga_gpu_handle_t gpu_handle,
                       aga_gpu_vram_usage_t *usage)
 {
@@ -1021,6 +1163,7 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
         // power and voltage
         stats->avg_package_power = metrics_info.average_socket_power;
         stats->package_power = metrics_info.current_socket_power;
+        stats->power_usage = metrics_info.current_socket_power;
         stats->voltage.voltage = metrics_info.voltage_soc;
         stats->voltage.gfx_voltage = metrics_info.voltage_gfx;
         stats->voltage.memory_voltage = metrics_info.voltage_mem;
@@ -1052,6 +1195,7 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
             metrics_info.vr_thm_residency_acc;
         stats->violation_stats.hbm_thermal_residency_accumulated =
             metrics_info.hbm_thm_residency_acc;
+
         // get usage information from the metrics info for partition 0
         for (uint16_t i = 0; i < AMDSMI_MAX_NUM_VCN; i++) {
             stats->usage.vcn_activity[i] = metrics_info.vcn_activity[i];
@@ -1125,6 +1269,35 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
         AGA_TRACE_ERR("Failed to get GPU metrics info for GPU {}, err {}",
                       gpu_handle, amdsmi_ret);
     }
+    // read xgmi stats
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_NOP_TX,
+                             &stats->xgmi_neighbor0_tx_nops);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_REQUEST_TX,
+                             &stats->xgmi_neighbor0_tx_requests);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_RESPONSE_TX,
+                             &stats->xgmi_neighbor0_tx_responses);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_0_BEATS_TX,
+                             &stats->xgmi_neighbor0_tx_beats);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_NOP_TX,
+                             &stats->xgmi_neighbor1_tx_nops);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_REQUEST_TX,
+                             &stats->xgmi_neighbor1_tx_requests);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_RESPONSE_TX,
+                             &stats->xgmi_neighbor1_tx_responses);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_1_BEATS_TX,
+                             &stats->xgmi_neighbor1_tx_beats);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_0,
+                             &stats->xgmi_neighbor0_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_1,
+                             &stats->xgmi_neighbor1_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_2,
+                             &stats->xgmi_neighbor2_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_3,
+                             &stats->xgmi_neighbor3_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_4,
+                             &stats->xgmi_neighbor4_tx_throughput);
+    g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_5,
+                             &stats->xgmi_neighbor5_tx_throughput);
     // for GPU partitions which are not the first partition, we need to get
     // usage information from the first partition
     // partition

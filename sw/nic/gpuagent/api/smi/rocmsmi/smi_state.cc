@@ -445,6 +445,13 @@ smi_state::init(aga_api_init_params_t *init_params) {
     return SDK_RET_OK;
 }
 
+sdk_ret_t
+smi_state::read_counter (aga_gpu_handle_t gpu_handle, uint64_t counter,
+                         uint64_t *value) {
+    *value = 0;
+    return SDK_RET_OK;
+}
+
 /// \@}
 
 }    // namespace aga

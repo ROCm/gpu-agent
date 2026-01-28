@@ -28,9 +28,9 @@ RUN dnf install -y --allowerasing \
 
 RUN yum install -y sudo
 
-RUN wget https://go.dev/dl/go1.24.6.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.24.6.linux-amd64.tar.gz && \
-    rm -f go1.24.6.linux-amd64.tar.gz
+RUN wget https://go.dev/dl/go1.25.5.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.25.5.linux-amd64.tar.gz && \
+    rm -f go1.25.5.linux-amd64.tar.gz
 
 ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
