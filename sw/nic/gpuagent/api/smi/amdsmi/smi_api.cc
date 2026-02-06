@@ -1298,6 +1298,10 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
                              &stats->xgmi_neighbor4_tx_throughput);
     g_smi_state.read_counter(gpu_handle, AMDSMI_EVNT_XGMI_DATA_OUT_5,
                              &stats->xgmi_neighbor5_tx_throughput);
+    // fill ecc
+    if (!partition_id) {
+		smi_fill_ecc_stats_(gpu_handle, stats);
+	}
     // for GPU partitions which are not the first partition, we need to get
     // usage information from the first partition
     // partition
