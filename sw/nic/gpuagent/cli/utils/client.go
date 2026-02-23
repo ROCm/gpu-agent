@@ -69,13 +69,19 @@ func getClientReqTimeout() (uint, error) {
 // createNewGRPCClient creates a grpc connection to HAL
 // we first check if secure grpc exists and if not fallback
 // to regular grpc
-func createNewGRPCClient() (*grpc.ClientConn, error) {
+func createNewGRPCClient(baseURL string) (*grpc.ClientConn, error) {
 	// unsecure grpc
 	agaPort := os.Getenv("AGA_GRPC_PORT")
 	if agaPort == "" {
 		agaPort = GRPCDefaultPort
 	}
-	srvURL := GRPCDefaultBaseURL + ":" + agaPort
+	var srvURL string
+
+	if baseURL == "" {
+		srvURL = GRPCDefaultBaseURL + ":" + agaPort
+	} else {
+		srvURL = baseURL + ":" + agaPort
+	}
 	timeout, err := getClientPortConnTimeout()
 	if err != nil {
 		return nil, err
@@ -98,12 +104,17 @@ func createNewGRPCClient() (*grpc.ClientConn, error) {
 	return rpcClient, err
 }
 
-func CreateNewAGAGRPClient() (*grpc.ClientConn, context.Context,
+func CreateNewAGAGRPClient(baseURL ...string) (*grpc.ClientConn, context.Context,
 	context.CancelFunc, error) {
 	var ctxt context.Context
 	var cancel context.CancelFunc
+	var url string
 
-	client, err := createNewGRPCClient()
+	if len(baseURL) != 0 {
+		url = baseURL[0]
+	}
+
+	client, err := createNewGRPCClient(url)
 	if err != nil {
 		return nil, nil, nil, err
 	}
