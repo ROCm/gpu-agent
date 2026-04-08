@@ -26,7 +26,7 @@ gopkglist:
 
 .PHONY: gpuagent
 gpuagent:
-	docker run --rm -it --privileged \
+	docker run --rm --privileged \
 		--name ${CONTAINER_NAME} \
 		--network host \
 		-e "USER_NAME=$(shell whoami)" \
@@ -38,7 +38,7 @@ gpuagent:
 		-v $(CURDIR):$(CONTAINER_WORKDIR) \
 		-w $(CONTAINER_WORKDIR) \
 		${GPUAGENT_BLD_CONTAINER_IMAGE} \
-		bash -c " cd $(CONTAINER_WORKDIR) && source ~/.bashrc && git config --global --add safe.directory $(CONTAINER_WORKDIR) && make gopkglist && make -C sw/nic/gpuagent -j$(shell nproc)"
+		bash -c " cd $(CONTAINER_WORKDIR) && source ~/.bashrc && make gopkglist && make -C sw/nic/gpuagent all"
 
 .PHONY: docker-shell
 docker-shell:

@@ -694,48 +694,68 @@ aga_gpu_api_stats_to_proto (GPUStats *proto_stats,
     proto_stats->set_totalcorrectableerrors(stats->total_correctable_errors);
     proto_stats->set_totaluncorrectableerrors(
                      stats->total_uncorrectable_errors);
+    proto_stats->set_totaldeferrederrors(stats->total_deferred_errors);
     proto_stats->set_sdmacorrectableerrors(stats->sdma_correctable_errors);
     proto_stats->set_sdmauncorrectableerrors(stats->sdma_uncorrectable_errors);
+    proto_stats->set_sdmadeferrederrors(stats->sdma_deferred_errors);
     proto_stats->set_gfxcorrectableerrors(stats->gfx_correctable_errors);
     proto_stats->set_gfxuncorrectableerrors(stats->gfx_uncorrectable_errors);
+    proto_stats->set_gfxdeferrederrors(stats->gfx_deferred_errors);
     proto_stats->set_mmhubcorrectableerrors(stats->mmhub_correctable_errors);
     proto_stats->set_mmhubuncorrectableerrors(
                      stats->mmhub_uncorrectable_errors);
+    proto_stats->set_mmhubdeferrederrors(stats->mmhub_deferred_errors);
     proto_stats->set_athubcorrectableerrors(stats->athub_correctable_errors);
     proto_stats->set_athubuncorrectableerrors(
                      stats->athub_uncorrectable_errors);
+    proto_stats->set_athubdeferrederrors(stats->athub_deferred_errors);
     proto_stats->set_bifcorrectableerrors(stats->bif_correctable_errors);
     proto_stats->set_bifuncorrectableerrors(stats->bif_uncorrectable_errors);
+    proto_stats->set_bifdeferrederrors(stats->bif_deferred_errors);
     proto_stats->set_hdpcorrectableerrors(stats->hdp_correctable_errors);
     proto_stats->set_hdpuncorrectableerrors(stats->hdp_uncorrectable_errors);
+    proto_stats->set_hdpdeferrederrors(stats->hdp_deferred_errors);
     proto_stats->set_xgmiwaflcorrectableerrors(
                      stats->xgmi_wafl_correctable_errors);
     proto_stats->set_xgmiwafluncorrectableerrors(
                      stats->xgmi_wafl_uncorrectable_errors);
+    proto_stats->set_xgmiwafldeferrederrors(stats->xgmi_wafl_deferred_errors);
     proto_stats->set_dfcorrectableerrors(stats->df_correctable_errors);
     proto_stats->set_dfuncorrectableerrors(stats->df_uncorrectable_errors);
+    proto_stats->set_dfdeferrederrors(stats->df_deferred_errors);
     proto_stats->set_smncorrectableerrors(stats->smn_correctable_errors);
     proto_stats->set_smnuncorrectableerrors(stats->smn_uncorrectable_errors);
+    proto_stats->set_smndeferrederrors(stats->smn_deferred_errors);
     proto_stats->set_semcorrectableerrors(stats->sem_correctable_errors);
     proto_stats->set_semuncorrectableerrors(stats->sem_uncorrectable_errors);
+    proto_stats->set_semdeferrederrors(stats->sem_deferred_errors);
     proto_stats->set_mp0correctableerrors(stats->mp0_correctable_errors);
     proto_stats->set_mp0uncorrectableerrors(stats->mp0_uncorrectable_errors);
+    proto_stats->set_mp0deferrederrors(stats->mp0_deferred_errors);
     proto_stats->set_mp1correctableerrors(stats->mp1_correctable_errors);
     proto_stats->set_mp1uncorrectableerrors(stats->mp1_uncorrectable_errors);
+    proto_stats->set_mp1deferrederrors(stats->mp1_deferred_errors);
     proto_stats->set_fusecorrectableerrors(stats->fuse_correctable_errors);
     proto_stats->set_fuseuncorrectableerrors(stats->fuse_uncorrectable_errors);
+    proto_stats->set_fusedeferrederrors(stats->fuse_deferred_errors);
     proto_stats->set_umccorrectableerrors(stats->umc_correctable_errors);
     proto_stats->set_umcuncorrectableerrors(stats->umc_uncorrectable_errors);
+    proto_stats->set_umcdeferrederrors(stats->umc_deferred_errors);
     proto_stats->set_mcacorrectableerrors(stats->mca_correctable_errors);
     proto_stats->set_mcauncorrectableerrors(stats->mca_uncorrectable_errors);
+    proto_stats->set_mcadeferrederrors(stats->mca_deferred_errors);
     proto_stats->set_vcncorrectableerrors(stats->vcn_correctable_errors);
     proto_stats->set_vcnuncorrectableerrors(stats->vcn_uncorrectable_errors);
+    proto_stats->set_vcndeferrederrors(stats->vcn_deferred_errors);
     proto_stats->set_jpegcorrectableerrors(stats->jpeg_correctable_errors);
     proto_stats->set_jpeguncorrectableerrors(stats->jpeg_uncorrectable_errors);
+    proto_stats->set_jpegdeferrederrors(stats->jpeg_deferred_errors);
     proto_stats->set_ihcorrectableerrors(stats->ih_correctable_errors);
     proto_stats->set_ihuncorrectableerrors(stats->ih_uncorrectable_errors);
+    proto_stats->set_ihdeferrederrors(stats->ih_deferred_errors);
     proto_stats->set_mpiocorrectableerrors(stats->mpio_correctable_errors);
     proto_stats->set_mpiouncorrectableerrors(stats->mpio_uncorrectable_errors);
+    proto_stats->set_mpiodeferrederrors(stats->mpio_deferred_errors);
     proto_stats->set_xgmineighbor0txnops(stats->xgmi_neighbor0_tx_nops);
     proto_stats->set_xgmineighbor0txrequests(stats->xgmi_neighbor0_tx_requests);
     proto_stats->set_xgmineighbor0txresponses

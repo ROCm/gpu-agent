@@ -1414,6 +1414,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "Total uncorrectable errors",
 			stats.GetTotalUncorrectableErrors())
 	}
+	if stats.GetTotalDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "Total deferred errors",
+			stats.GetTotalDeferredErrors())
+	}
 	if stats.GetSDMACorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "SDMA correctable errors",
 			stats.GetSDMACorrectableErrors())
@@ -1421,6 +1425,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetSDMAUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "SDMA uncorrectable errors",
 			stats.GetSDMAUncorrectableErrors())
+	}
+	if stats.GetSDMADeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "SDMA deferred errors",
+			stats.GetSDMADeferredErrors())
 	}
 	if stats.GetGFXCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "GFX correctable errors",
@@ -1430,6 +1438,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "GFX uncorrectable errors",
 			stats.GetGFXUncorrectableErrors())
 	}
+	if stats.GetGFXDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "GFX deferred errors",
+			stats.GetGFXDeferredErrors())
+	}
 	if stats.GetMMHUBCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MMHUB correctable errors",
 			stats.GetMMHUBCorrectableErrors())
@@ -1437,6 +1449,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetMMHUBUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MMHUB uncorrectable errors",
 			stats.GetMMHUBUncorrectableErrors())
+	}
+	if stats.GetMMHUBDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "MMHUB deferred errors",
+			stats.GetMMHUBDeferredErrors())
 	}
 	if stats.GetATHUBCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "ATHUB correctable errors",
@@ -1446,6 +1462,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "ATHUB uncorrectable errors",
 			stats.GetATHUBUncorrectableErrors())
 	}
+	if stats.GetATHUBDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "ATHUB deferred errors",
+			stats.GetATHUBDeferredErrors())
+	}
 	if stats.GetBIFCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "BIF correctable errors",
 			stats.GetBIFCorrectableErrors())
@@ -1453,6 +1473,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetBIFUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "BIF uncorrectable errors",
 			stats.GetBIFUncorrectableErrors())
+	}
+	if stats.GetBIFDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "BIF deferred errors",
+			stats.GetBIFDeferredErrors())
 	}
 	if stats.GetHDPCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "HDP correctable errors",
@@ -1462,6 +1486,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "HDP uncorrectable errors",
 			stats.GetHDPUncorrectableErrors())
 	}
+	if stats.GetHDPDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "HDP deferred errors",
+			stats.GetHDPDeferredErrors())
+	}
 	if stats.GetXGMIWAFLCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "XGMI WAFL correctable errors",
 			stats.GetXGMIWAFLCorrectableErrors())
@@ -1469,6 +1497,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetXGMIWAFLUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "XGMI WAFL uncorrectable errors",
 			stats.GetXGMIWAFLUncorrectableErrors())
+	}
+	if stats.GetXGMIWAFLDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "XGMI WAFL deferred errors",
+			stats.GetXGMIWAFLDeferredErrors())
 	}
 	if stats.GetDFCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "DF correctable errors",
@@ -1478,6 +1510,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "DF uncorrectable errors",
 			stats.GetDFUncorrectableErrors())
 	}
+	if stats.GetDFDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "DF deferred errors",
+			stats.GetDFDeferredErrors())
+	}
 	if stats.GetSMNCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "SMN correctable errors",
 			stats.GetSMNCorrectableErrors())
@@ -1485,6 +1521,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetSMNUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "SMN uncorrectable errors",
 			stats.GetSMNUncorrectableErrors())
+	}
+	if stats.GetSMNDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "SMN deferred errors",
+			stats.GetSMNDeferredErrors())
 	}
 	if stats.GetSEMCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "SEM correctable errors",
@@ -1494,6 +1534,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "SEM uncorrectable errors",
 			stats.GetSEMUncorrectableErrors())
 	}
+	if stats.GetSEMDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "SEM deferred errors",
+			stats.GetSEMDeferredErrors())
+	}
 	if stats.GetMP0CorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MP0 correctable errors",
 			stats.GetMP0CorrectableErrors())
@@ -1501,6 +1545,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetMP0UncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MP0 uncorrectable errors",
 			stats.GetMP0UncorrectableErrors())
+	}
+	if stats.GetMP0DeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "MP0 deferred errors",
+			stats.GetMP0DeferredErrors())
 	}
 	if stats.GetMP1CorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MP1 correctable errors",
@@ -1510,6 +1558,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "MP1 uncorrectable errors",
 			stats.GetMP1UncorrectableErrors())
 	}
+	if stats.GetMP1DeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "MP1 deferred errors",
+			stats.GetMP1DeferredErrors())
+	}
 	if stats.GetFUSECorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "FUSE correctable errors",
 			stats.GetFUSECorrectableErrors())
@@ -1517,6 +1569,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetFUSEUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "FUSE uncorrectable errors",
 			stats.GetFUSEUncorrectableErrors())
+	}
+	if stats.GetFUSEDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "FUSE deferred errors",
+			stats.GetFUSEDeferredErrors())
 	}
 	if stats.GetUMCCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "UMC correctable errors",
@@ -1526,6 +1582,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "UMC uncorrectable errors",
 			stats.GetUMCUncorrectableErrors())
 	}
+	if stats.GetUMCDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "UMC deferred errors",
+			stats.GetUMCDeferredErrors())
+	}
 	if stats.GetMCACorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MCA correctable errors",
 			stats.GetMCACorrectableErrors())
@@ -1533,6 +1593,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetMCAUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MCA uncorrectable errors",
 			stats.GetMCAUncorrectableErrors())
+	}
+	if stats.GetMCADeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "MCA deferred errors",
+			stats.GetMCADeferredErrors())
 	}
 	if stats.GetVCNCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "VCN correctable errors",
@@ -1542,6 +1606,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "VCN uncorrectable errors",
 			stats.GetVCNUncorrectableErrors())
 	}
+	if stats.GetVCNDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "VCN deferred errors",
+			stats.GetVCNDeferredErrors())
+	}
 	if stats.GetJPEGCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "JPEG correctable errors",
 			stats.GetJPEGCorrectableErrors())
@@ -1549,6 +1617,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetJPEGUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "JPEG uncorrectable errors",
 			stats.GetJPEGUncorrectableErrors())
+	}
+	if stats.GetJPEGDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "JPEG deferred errors",
+			stats.GetJPEGDeferredErrors())
 	}
 	if stats.GetIHCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "IH correctable errors",
@@ -1558,6 +1630,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 		fmt.Printf(indent+"%-38s : %d\n", "IH uncorrectable errors",
 			stats.GetIHUncorrectableErrors())
 	}
+	if stats.GetIHDeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "IH deferred errors",
+			stats.GetIHDeferredErrors())
+	}
 	if stats.GetMPIOCorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MPIO correctable errors",
 			stats.GetMPIOCorrectableErrors())
@@ -1565,6 +1641,10 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 	if stats.GetMPIOUncorrectableErrors() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "MPIO uncorrectable errors",
 			stats.GetMPIOUncorrectableErrors())
+	}
+	if stats.GetMPIODeferredErrors() != 0 {
+		fmt.Printf(indent+"%-38s : %d\n", "MPIO deferred errors",
+			stats.GetMPIODeferredErrors())
 	}
 	if stats.GetXGMINeighbor0TxNOPs() != 0 {
 		fmt.Printf(indent+"%-38s : %d\n", "Nops sent to XGMI neighbor0",

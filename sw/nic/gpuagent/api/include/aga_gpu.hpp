@@ -662,82 +662,122 @@ typedef struct aga_gpu_stats_s {
     uint64_t total_correctable_errors;
     /// total uncorrectable errors
     uint64_t total_uncorrectable_errors;
+    /// total deferred errors
+    uint64_t total_deferred_errors;
     /// SDMA correctable errors
     uint64_t sdma_correctable_errors;
     /// SDMA uncorrectable errors
     uint64_t sdma_uncorrectable_errors;
+    /// SDMA deferred errors
+    uint64_t sdma_deferred_errors;
     /// GFX correctable errors
     uint64_t gfx_correctable_errors;
     /// GFX uncorrectable errors
     uint64_t gfx_uncorrectable_errors;
+    /// GFX deferred errors
+    uint64_t gfx_deferred_errors;
     /// MMHUB correctable errors
     uint64_t mmhub_correctable_errors;
     /// MMHUB uncorrectable errors
     uint64_t mmhub_uncorrectable_errors;
+    /// MMHUB deferred errors
+    uint64_t mmhub_deferred_errors;
     /// ATHUB correctable errors
     uint64_t athub_correctable_errors;
     /// ATHUB uncorrectable errors
     uint64_t athub_uncorrectable_errors;
+    /// ATHUB deferred errors
+    uint64_t athub_deferred_errors;
     /// BIF correctable errors
     uint64_t bif_correctable_errors;
     /// BIF uncorrectable errors
     uint64_t bif_uncorrectable_errors;
+    /// BIF deferred errors
+    uint64_t bif_deferred_errors;
     /// HDP correctable errors
     uint64_t hdp_correctable_errors;
     /// HDP uncorrectable errors
     uint64_t hdp_uncorrectable_errors;
+    /// HDP deferred errors
+    uint64_t hdp_deferred_errors;
     /// XGMI WAFL correctable errors
     uint64_t xgmi_wafl_correctable_errors;
     /// XGMI WAFL uncorrectable errors
     uint64_t xgmi_wafl_uncorrectable_errors;
+    /// XGMI WAFL deferred errors
+    uint64_t xgmi_wafl_deferred_errors;
     /// DF correctable errors
     uint64_t df_correctable_errors;
     /// DF uncorrectable errors
     uint64_t df_uncorrectable_errors;
+    /// DF deferred errors
+    uint64_t df_deferred_errors;
     /// SMN correctable errors
     uint64_t smn_correctable_errors;
     /// SMN uncorrectable errors
     uint64_t smn_uncorrectable_errors;
+    /// SMN deferred errors
+    uint64_t smn_deferred_errors;
     /// SEM correctable errors
     uint64_t sem_correctable_errors;
     /// SEM uncorrectable errors
     uint64_t sem_uncorrectable_errors;
+    /// SEM deferred errors
+    uint64_t sem_deferred_errors;
     /// MP0 correctable errors
     uint64_t mp0_correctable_errors;
     /// MP0 uncorrectable errors
     uint64_t mp0_uncorrectable_errors;
+    /// MP0 deferred errors
+    uint64_t mp0_deferred_errors;
     /// MP1 correctable errors
     uint64_t mp1_correctable_errors;
     /// MP1 uncorrectable errors
     uint64_t mp1_uncorrectable_errors;
+    /// MP1 deferred errors
+    uint64_t mp1_deferred_errors;
     /// FUSE correctable errors
     uint64_t fuse_correctable_errors;
     /// FUSE uncorrectable errors
     uint64_t fuse_uncorrectable_errors;
+    /// FUSE deferred errors
+    uint64_t fuse_deferred_errors;
     /// UMC correctable errors
     uint64_t umc_correctable_errors;
     /// UMC uncorrectable errors
     uint64_t umc_uncorrectable_errors;
+    /// UMC deferred errors
+    uint64_t umc_deferred_errors;
     /// MCA correctable errors
     uint64_t mca_correctable_errors;
     /// MCA uncorrectable errors
     uint64_t mca_uncorrectable_errors;
+    /// MCA deferred errors
+    uint64_t mca_deferred_errors;
     /// VCN correctable errors
     uint64_t vcn_correctable_errors;
     /// VCN uncorrectable errors
     uint64_t vcn_uncorrectable_errors;
+    /// VCN deferred errors
+    uint64_t vcn_deferred_errors;
     /// JPEG correctable errors
     uint64_t jpeg_correctable_errors;
     /// JPEG uncorrectable errors
     uint64_t jpeg_uncorrectable_errors;
+    /// JPEG deferred errors
+    uint64_t jpeg_deferred_errors;
     /// IH correctable errors
     uint64_t ih_correctable_errors;
     /// IH uncorrectable errors
     uint64_t ih_uncorrectable_errors;
+    /// IH deferred errors
+    uint64_t ih_deferred_errors;
     /// MPIO correctable errors
     uint64_t mpio_correctable_errors;
     /// MPIO uncorrectable errors
     uint64_t mpio_uncorrectable_errors;
+    /// MPIO deferred errors
+    uint64_t mpio_deferred_errors;
     /// XGMI counters
     /// NOPs sent to neighbor0
     uint64_t xgmi_neighbor0_tx_nops;

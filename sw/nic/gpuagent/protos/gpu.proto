@@ -755,6 +755,46 @@ message GPUStats {
   repeated GPUXGMILinkStats  XGMILinkStats               = 67;
   // GPU violation statistics
   GPUViolationStats          ViolationStats              = 68;
+  // Total deferred errors across all blocks
+  uint64                     TotalDeferredErrors         = 69;
+  // SDMA deferred errors
+  uint64                     SDMADeferredErrors          = 70;
+  // GFX deferred errors
+  uint64                     GFXDeferredErrors           = 71;
+  // MMHUB deferred errors
+  uint64                     MMHUBDeferredErrors         = 72;
+  // ATHUB deferred errors
+  uint64                     ATHUBDeferredErrors         = 73;
+  // BIF deferred errors
+  uint64                     BIFDeferredErrors           = 74;
+  // HDP deferred errors
+  uint64                     HDPDeferredErrors           = 75;
+  // XGMI WAFL deferred errors
+  uint64                     XGMIWAFLDeferredErrors      = 76;
+  // DF deferred errors
+  uint64                     DFDeferredErrors            = 77;
+  // SMN deferred errors
+  uint64                     SMNDeferredErrors           = 78;
+  // SEM deferred errors
+  uint64                     SEMDeferredErrors           = 79;
+  // MP0 deferred errors
+  uint64                     MP0DeferredErrors           = 80;
+  // MP1 deferred errors
+  uint64                     MP1DeferredErrors           = 81;
+  // FUSE deferred errors
+  uint64                     FUSEDeferredErrors          = 82;
+  // UMC deferred errors
+  uint64                     UMCDeferredErrors           = 83;
+  // MCA deferred errors
+  uint64                     MCADeferredErrors           = 84;
+  // VCN deferred errors
+  uint64                     VCNDeferredErrors           = 85;
+  // JPEG deferred errors
+  uint64                     JPEGDeferredErrors          = 86;
+  // IH deferred errors
+  uint64                     IHDeferredErrors            = 87;
+  // MPIO deferred errors
+  uint64                     MPIODeferredErrors          = 88;
 }
 
 // GPU captures config, operational status and stat of GPU object
