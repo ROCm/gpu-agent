@@ -47,6 +47,10 @@ export GRPC_PY_PLUGIN        := ${BLD_BIN_DIR}/grpc_python_plugin
 export PROTOC_LIB_PATH       := ${BLD_DIR}/lib
 export OTHER_THIRD_PARTY_INC ?= ${SPDLOG_INC_DIR} ${GFLAGS_INC_DIR} ${GRPC_INCLUDE}
 
+GIT_COMMIT                   ?= $(shell git rev-list -1 HEAD --abbrev-commit)
+GIT_BRANCH                   ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+GPUAGENT_VERSION             ?= $(GIT_BRANCH)-$(GIT_COMMIT)
+
 TARGET                       := gpuagent
 EXCLUDE_DIRS                 := $(TOPDIR)/nic/third-party
 EXCLUDE_VENDOR               := $(ABS_DIR)/nic/gpuagent/vendor
@@ -212,7 +216,7 @@ gen-protos:
 
 gpuctl:
 	@echo "building gpuctl"
-	CGO_ENABLED=0 go build -C cli -o ${BLD_BIN_DIR}/gpuctl
+	CGO_ENABLED=0 go build -C cli -ldflags="-s -w -X github.com/ROCm/gpu-agent/sw/nic/gpuagent/cli/cmd.GpuctlVersion=$(GPUAGENT_VERSION)" -o ${BLD_BIN_DIR}/gpuctl
 
 gogo-protos:
 	@mkdir -p ${BLD_PROTOGEN_DIR}
@@ -220,27 +224,27 @@ gogo-protos:
 
 $(OBJ_DIR)/%.o: $(TOPDIR)/%.cc
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS) $(DEFS) $(INCS_AMD_SMI) -DAMD_SMI -D__FNAME__=__FILE__ -c $< -o $@
+	$(CC) $(CFLAGS) $(DEFS) $(INCS_AMD_SMI) -DAMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(TOPDIR)/%.c
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS)  $(INCS_AMD_SMI) -DAMD_SMI -D__FNAME__=__FILE__ -c $< -o $@
+	$(CC) $(CFLAGS)  $(INCS_AMD_SMI) -DAMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 $(OBJ_DIR_GIM)/%.o: $(TOPDIR)/%.cc
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS) $(DEFS) $(INCS_GIM_SMI) -DGIM_AMD_SMI -D__FNAME__=__FILE__ -c $< -o $@
+	$(CC) $(CFLAGS) $(DEFS) $(INCS_GIM_SMI) -DGIM_AMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 $(OBJ_DIR_GIM)/%.o: $(TOPDIR)/%.c
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS)  $(INCS_GIM_SMI) -DGIM_AMD_SMI -D__FNAME__=__FILE__ -c $< -o $@
+	$(CC) $(CFLAGS)  $(INCS_GIM_SMI) -DGIM_AMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 $(OBJ_DIR_MOCK)/%.o: $(TOPDIR)/%.cc
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS) $(DEFS) $(INCS_MOCK) -DAMD_SMI -D__FNAME__=__FILE__ -c $< -o $@
+	$(CC) $(CFLAGS) $(DEFS) $(INCS_MOCK) -DAMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 $(OBJ_DIR_MOCK)/%.o: $(TOPDIR)/%.c
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS)  $(INCS_MOCK) -DAMD_SMI -D__FNAME__=__FILE__ -c $< -o $@
+	$(CC) $(CFLAGS)  $(INCS_MOCK) -DAMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 clean:
 	rm -rf $(BLD_BIN_DIR) $(OBJ_DIR) $(OBJ_DIR_GIM) $(OBJ_DIR_MOCK) $(BLD_PROTOGEN_DIR); \

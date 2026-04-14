@@ -39,6 +39,7 @@ using types::Empty;
 using amdgpu::TraceRequest;
 using amdgpu::TraceResponse;
 using amdgpu::TraceGetResponse;
+using amdgpu::VersionGetResponse;
 
 class DebugSvcImpl final : public DebugSvc::Service {
 public:
@@ -48,6 +49,8 @@ public:
                          TraceGetResponse *rsp) override;
     Status TraceFlush(ServerContext *context, const Empty *req,
                       Empty *rsp) override;
+    Status VersionGet(ServerContext *context, const Empty *req,
+                      VersionGetResponse *rsp) override;
 };
 
 #endif    // __AGA_SVC_DEBUG_HPP__

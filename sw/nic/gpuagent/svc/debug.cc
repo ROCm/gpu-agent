@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "nic/gpuagent/core/trace.hpp"
 #include "nic/gpuagent/svc/debug.hpp"
+#include "nic/gpuagent/api/include/base.hpp"
 
 Status
 DebugSvcImpl::TraceUpdate(ServerContext *context,
@@ -101,5 +102,12 @@ Status
 DebugSvcImpl::TraceFlush(ServerContext *context, const Empty *req,
                          Empty *rsp) {
     core::flush_logs();
+    return Status::OK;
+}
+
+Status
+DebugSvcImpl::VersionGet(ServerContext *context, const Empty *req,
+                         VersionGetResponse *rsp) {
+    rsp->set_version(GPUAGENT_VERSION);
     return Status::OK;
 }

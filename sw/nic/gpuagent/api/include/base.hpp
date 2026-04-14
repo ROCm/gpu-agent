@@ -32,6 +32,10 @@ limitations under the License.
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#ifndef GPUAGENT_VERSION
+#define GPUAGENT_VERSION    "unknown"
+#endif
+
 // TODO:
 // 1. rename this to aga_base.hpp ??
 // 2. move this to core/

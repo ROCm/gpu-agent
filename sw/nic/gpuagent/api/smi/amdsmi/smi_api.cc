@@ -1168,6 +1168,7 @@ smi_fill_ecc_stats_ (aga_gpu_handle_t gpu_handle,
     stats->total_correctable_errors = total_correctable_count;
     stats->total_uncorrectable_errors = total_uncorrectable_count;
     stats->total_deferred_errors = total_deferred_count;
+    return SDK_RET_OK;
 }
 
 static sdk_ret_t

@@ -36,6 +36,8 @@ service DebugSvc {
   rpc TraceFlush(types.Empty) returns (types.Empty) {}
   // API to query the tracing related configuration
   rpc TraceGet (types.Empty) returns (TraceGetResponse) {}
+  // API to query the version of GPUAgent
+  rpc VersionGet (types.Empty) returns (VersionGetResponse) {}
 }
 
 // supported trace levels
@@ -77,4 +79,10 @@ message TraceGetResponse {
   string     TraceFile  = 2;
   // API trace enabled/disabled
   bool       ApiTraceEn = 3;
+}
+
+// GPUAgent version get response message
+message VersionGetResponse {
+  // GPUAgent version
+  string Version = 1;
 }
