@@ -29,11 +29,15 @@ namespace aga {
 sdk_ret_t
 smi_init (aga_api_init_params_t *init_params)
 {
-    sdk_ret_t ret;
+    // initialize SMI library
+    return g_smi_state.init(init_params);
+}
 
-    // initialize rocm-smi library
-    ret = g_smi_state.init(init_params);
-    return ret;
+sdk_ret_t
+smi_teardown (void)
+{
+    // teardown SMI library
+    return g_smi_state.teardown();
 }
 
 }    // namespace aga

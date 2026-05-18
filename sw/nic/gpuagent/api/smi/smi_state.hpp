@@ -58,6 +58,8 @@ public:
     /// \brief constructor
     smi_state() {
         num_gpu_ = 0;
+        initialized_ = false;
+        watcher_thread_ = NULL;
     }
 
     /// \brief    destructor
@@ -67,6 +69,10 @@ public:
     /// \param[in] init_params    initialization parameters
     /// \return SDK_RET_OK or error status in case of failure
     sdk_ret_t init(aga_api_init_params_t *init_params);
+
+    /// \brief    teardown routine
+    /// \return SDK_RET_OK or error status in case of failure
+    sdk_ret_t teardown(void);
 
     /// \brief    event database and monitoring infra initialization
     /// \return SDK_RET_OK or error status in case of failure
@@ -170,6 +176,8 @@ private:
                   aga_gpu_handle_t gpu_handle, aga_gpu_watch_db_t *watch_db);
 
 private:
+    /// initialization state
+    bool initialized_;
     /// no. of GPUs in the system
     uint32_t num_gpu_;
     /// gpu handles

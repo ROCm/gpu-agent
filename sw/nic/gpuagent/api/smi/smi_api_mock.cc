@@ -623,6 +623,12 @@ spawn_event_monitor_thread (void)
 }
 
 sdk_ret_t
+smi_teardown (void)
+{
+    return SDK_RET_OK;
+}
+
+sdk_ret_t
 smi_init (aga_api_init_params_t *init_params)
 {
     // spawn event monitor thread

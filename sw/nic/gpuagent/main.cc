@@ -31,6 +31,7 @@ limitations under the License.
 #include <thread>
 #include <iostream>
 #include <fstream>
+#include <pthread.h>
 #include <signal.h>
 #include <cerrno>
 #include <cstring>
@@ -44,6 +45,7 @@ limitations under the License.
 #include "nic/sdk/include/sdk/assert.hpp"
 #include "nic/gpuagent/include/globals.hpp"
 #include "nic/gpuagent/init.hpp"
+#include "nic/gpuagent/api/include/aga_init.hpp"
 #include "nic/gpuagent/svc/gpu.hpp"
 
 using grpc::Channel;
@@ -82,14 +84,36 @@ clean_unix_socket (const std::string& socket_path)
     unlink(socket_path.c_str());
 }
 
-/// \brief    signal handler for cleanup
+/// \brief    dedicated thread that waits for termination signals and
+///           performs cleanup in normal thread context (async-signal-safe)
 static void
-signal_handler (int signum)
+signal_wait_thread (void)
 {
+    int sig;
+    sigset_t sigset;
+
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGTERM);
+    sigaddset(&sigset, SIGINT);
+    sigaddset(&sigset, SIGABRT);
+    sigaddset(&sigset, SIGQUIT);
+    sigaddset(&sigset, SIGHUP);
+    // block until a signal arrives
+    sigwait(&sigset, &sig);
+    // cleanup api layer
+    aga_api_teardown();
+    // cleanup unix socket if used
     if (!g_socket_path.empty()) {
         clean_unix_socket(g_socket_path);
     }
-    exit(0);
+    // restore default handler, unblock the signal in this thread
+    // (sigwait dequeues but does not unblock), then re-raise so the
+    // process terminates with the correct signal/exit status
+    signal(sig, SIG_DFL);
+    sigemptyset(&sigset);
+    sigaddset(&sigset, sig);
+    pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
+    raise(sig);
 }
 
 /// \brief    prepare Unix socket for gRPC server
@@ -175,8 +199,9 @@ prepare_unix_socket (const std::string& socket_path)
 int
 main (int argc, char **argv)
 {
-    int oc;
+    int oc, rv;
     sdk_ret_t ret;
+    sigset_t sigset;
     struct in6_addr ip_addr;
     std::string grpc_server;
     std::string grpc_server_ip;
@@ -264,6 +289,20 @@ main (int argc, char **argv)
     strncpy(init_params.grpc_server, grpc_server.c_str(),
             AGA_GRPC_SERVER_STR_LEN);
     init_params.grpc_server[AGA_GRPC_SERVER_STR_LEN - 1] = '\0';
+    // block termination signals in all threads so the dedicated
+    // signal-wait thread can handle them in normal context
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGTERM);
+    sigaddset(&sigset, SIGINT);
+    sigaddset(&sigset, SIGABRT);
+    sigaddset(&sigset, SIGQUIT);
+    sigaddset(&sigset, SIGHUP);
+    rv = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+    if (rv) {
+        fprintf(stderr, "Failed to block signals, err %d\n", rv);
+    }
+    // spawn signal-wait thread for async-signal-safe cleanup
+    std::thread(signal_wait_thread).detach();
     // handle Unix socket setup before initialization
     if (use_unix_socket) {
         // prepare Unix socket (check for existing instances, cleanup, etc.)
@@ -273,9 +312,6 @@ main (int argc, char **argv)
         }
         // save socket path for cleanup
         g_socket_path = grpc_unix_socket;
-        // register signal handlers for cleanup
-        signal(SIGINT, signal_handler);
-        signal(SIGTERM, signal_handler);
     } else {
         // cleanup any existing Unix socket on TCP initialization
         clean_unix_socket(AGA_DEFAULT_UNIX_SOCKET_PATH);

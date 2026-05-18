@@ -715,6 +715,29 @@ smi_state::init(aga_api_init_params_t *init_params) {
     spawn_event_monitor_thread_();
     // spawn watcher thread
     spawn_watcher_thread_();
+    initialized_ = true;
+    return SDK_RET_OK;
+}
+
+sdk_ret_t
+smi_state::teardown (void)
+{
+    amdsmi_status_t status;
+
+    if (!initialized_) {
+        return SDK_RET_OK;
+    }
+    // stop the watcher thread before shutting down the SMI library to
+    // avoid racing with the watcher timer callback which calls SMI APIs
+    if (watcher_thread_) {
+        watcher_thread_->stop();
+        watcher_thread_->wait();
+    }
+    status = amdsmi_shut_down();
+    if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Failed to shutdown amd smi library, err {}", status);
+        return amdsmi_ret_to_sdk_ret(status);
+    }
     return SDK_RET_OK;
 }
 

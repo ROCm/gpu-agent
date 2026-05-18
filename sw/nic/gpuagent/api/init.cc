@@ -42,7 +42,7 @@ aga_api_init (aga_api_init_params_t *init_params)
     while (!aga::is_api_thread_ready()) {
         sched_yield();
     }
-    // initialize rocm-smi library
+    // initialize SMI library
     ret = aga::smi_init(init_params);
     if (unlikely(ret != SDK_RET_OK)) {
         AGA_TRACE_ERR("Failed to initialize smi library, err {}", ret());
@@ -54,5 +54,7 @@ aga_api_init (aga_api_init_params_t *init_params)
 sdk_ret_t
 aga_api_teardown (void)
 {
+    // teardown SMI library
+    aga::smi_teardown();
     return SDK_RET_OK;
 }

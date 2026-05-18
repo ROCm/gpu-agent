@@ -54,6 +54,10 @@ namespace aga {
 /// \return     SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_init(aga_api_init_params_t *init_params);
 
+/// \brief    teardown smi layer
+/// \return     SDK_RET_OK or error code in case of failure
+sdk_ret_t smi_teardown(void);
+
 /// \brief    fill gpu object config specification
 /// \param[in] handle    GPU handle
 /// \param[out] spec    operational status to be filled
