@@ -22,6 +22,7 @@ limitations under the License.
 
 #include <sstream>
 #include <iomanip>
+#include <mutex>
 extern "C" {
 #include "nic/third-party/rocm/amd_smi_lib/include/amd_smi/amdsmi.h"
 }
@@ -49,6 +50,7 @@ namespace aga {
 
 /// cache GPU metrics so that we don't do repeated calls while filling spec,
 /// status and statistics
+std::mutex g_gpu_metrics_mutex;
 std::unordered_map<aga_gpu_handle_t, amdsmi_gpu_metrics_t> g_gpu_metrics;
 /// counter resolution in uJ; this is a constant value that we get once during
 /// init time and use whenever we want to calculate energy accumalated
@@ -142,16 +144,18 @@ smi_gpu_fill_spec (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec)
     uint32_t sensor_idx[AGA_GPU_MAX_POWER_CAP_SENSOR];
     amdsmi_power_cap_type_t sensor_types[AGA_GPU_MAX_POWER_CAP_SENSOR];
 
-    // clear cached responses
-    g_gpu_metrics.clear();
-
+    // re-fetch gpu metrics for this GPU handle
     amdsmi_ret = amdsmi_get_gpu_metrics_info(gpu_handle, &metrics_info);
-    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
-        AGA_TRACE_ERR("Failed to get GPU metrics info for GPU {}, err {}",
-                      gpu_handle, amdsmi_ret);
-    } else {
-        // cache response
-        g_gpu_metrics[gpu_handle] = metrics_info;
+    {
+        std::lock_guard<std::mutex> lock(g_gpu_metrics_mutex);
+        g_gpu_metrics.erase(gpu_handle);
+        if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to get GPU metrics info for GPU {}, err {}",
+                          gpu_handle, amdsmi_ret);
+        } else {
+            // cache response
+            g_gpu_metrics[gpu_handle] = metrics_info;
+        }
     }
     // fill the overdrive level
     amdsmi_ret = amdsmi_get_gpu_overdrive_level(gpu_handle, &value_32);
@@ -783,8 +787,13 @@ smi_gpu_fill_status (aga_gpu_handle_t gpu_handle, uint32_t gpu_id,
     amdsmi_od_volt_freq_data_t vc_data;
     amdsmi_gpu_metrics_t metrics_info = { 0 };
 
-    if (g_gpu_metrics.find(gpu_handle) != g_gpu_metrics.end()) {
-        metrics_info = g_gpu_metrics[gpu_handle];
+    {
+        std::lock_guard<std::mutex> lock(g_gpu_metrics_mutex);
+        if (g_gpu_metrics.find(gpu_handle) != g_gpu_metrics.end()) {
+            metrics_info = g_gpu_metrics[gpu_handle];
+        }
+    }
+    if (metrics_info.common_header.structure_size != 0) {
         // fill the clock status with metrics info
         smi_fill_clock_status_(gpu_handle, spec, status, &metrics_info);
         // fill firmware timestamp
@@ -1247,6 +1256,7 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
     amdsmi_status_t amdsmi_ret;
     uint64_t sent, received, max_pkt_size;
     amdsmi_gpu_metrics_t metrics_info = {};
+    amdsmi_gpu_metrics_t cached_metrics = {};
 
     // reset stats to invalid values
     memset(&stats->usage, 0xff, sizeof(aga_gpu_usage_t));
@@ -1258,8 +1268,13 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
     // fill VRAM usage
     smi_fill_vram_usage_(gpu_handle, &stats->vram_usage);
     // fill additional statistics from gpu metrics
-    if (g_gpu_metrics.find(gpu_handle) != g_gpu_metrics.end()) {
-        metrics_info = g_gpu_metrics[gpu_handle];
+    {
+        std::lock_guard<std::mutex> lock(g_gpu_metrics_mutex);
+        if (g_gpu_metrics.find(gpu_handle) != g_gpu_metrics.end()) {
+            metrics_info = g_gpu_metrics[gpu_handle];
+        }
+    }
+    if (metrics_info.common_header.structure_size != 0) {
         // power and voltage
         stats->avg_package_power = metrics_info.average_socket_power;
         stats->package_power = metrics_info.current_socket_power;
@@ -1419,11 +1434,17 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
     }
     // always fill for primary partition with cached metrics info,
     // as primary partition metrics is not updated in new API.
-    if (!partition_id &&
-        (g_gpu_metrics.find(gpu_handle) != g_gpu_metrics.end())) {
-        metrics_info = g_gpu_metrics[gpu_handle];
-        stats->usage.gfx_activity = metrics_info.average_gfx_activity;
-        stats->usage.umc_activity = metrics_info.average_umc_activity;
+    if (!partition_id) {
+        {
+            std::lock_guard<std::mutex> lock(g_gpu_metrics_mutex);
+            if (g_gpu_metrics.find(gpu_handle) != g_gpu_metrics.end()) {
+                cached_metrics = g_gpu_metrics[gpu_handle];
+            }
+        }
+        if (cached_metrics.common_header.structure_size != 0) {
+            stats->usage.gfx_activity = cached_metrics.average_gfx_activity;
+            stats->usage.umc_activity = cached_metrics.average_umc_activity;
+        }
     }
     return SDK_RET_OK;
 }
