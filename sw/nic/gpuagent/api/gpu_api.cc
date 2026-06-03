@@ -413,6 +413,7 @@ static bool
 aga_gpu_cper_info_from_entry (void *entry, void *ctxt)
 {
     sdk_ret_t ret;
+    aga_obj_key_t key;
     aga_cper_info_t info = {};
     gpu_entry *gpu = (gpu_entry *)entry;
     aga_gpu_cper_read_args_t *args = (aga_gpu_cper_read_args_t *)ctxt;
@@ -428,7 +429,9 @@ aga_gpu_cper_info_from_entry (void *entry, void *ctxt)
     // set GPU id
     info.gpu = gpu->key();
     // get CPER information
-    ret = aga::smi_gpu_get_cper_entries(gpu->handle(), args->severity, &info);
+    key = gpu->key();
+    ret = aga::smi_gpu_get_cper_entries(gpu->handle(), &key,
+                                        args->severity, &info);
     if (ret != SDK_RET_OK) {
         goto done;
     }

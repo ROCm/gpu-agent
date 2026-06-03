@@ -21,6 +21,7 @@
 ///
 //----------------------------------------------------------------------------
 
+#include <memory>
 #include <sstream>
 #include <iomanip>
 extern "C" {
@@ -32,6 +33,7 @@ extern "C" {
 #include "nic/gpuagent/api/aga_state.hpp"
 #include "nic/gpuagent/api/smi/smi_api.hpp"
 #include "nic/gpuagent/api/smi/smi_state.hpp"
+#include "nic/gpuagent/api/smi/gimamdsmi/smi_session.hpp"
 #include "nic/gpuagent/api/smi/gimamdsmi/smi_utils.hpp"
 
 // TODO:
@@ -44,10 +46,49 @@ namespace aga {
 #define AMDSMI_UINT64_INVALID_VAL       0xffffffffffffffff
 #define CPER_BUF_SIZE                   (4 * 1024 * 1024) // 4 MB
 
+/// \brief  per-request session guard that ALSO refreshes the GPU handle
+///         from its stable gpu_key (UUID). In lazy_init mode, opens a
+///         refcount-gated amdsmi session AND re-resolves the handle via
+///         amdsmi_get_processor_handle_from_uuid (since handles returned by
+///         amdsmi may change across init/shut_down cycles). In persistent
+///         mode it is a no-op and the local `gpu_handle` retains the
+///         caller-provided value.
+///
+///         The macro injects a local `gpu_handle` variable into the calling
+///         function (shadowing the caller's handle argument) so subsequent
+///         amdsmi calls naturally pick up the refreshed handle without any
+///         body changes.
+///
+///         Usage (inside any public smi_* entry point that received
+///         `caller_handle` and a `const aga_obj_key_t *gpu_key`):
+///             AGA_SMI_SESSION_GUARD(gpu_key, caller_handle);
+///             // ... amdsmi calls now use the refreshed local `gpu_handle` ...
+#define AGA_SMI_SESSION_GUARD(gpu_key_ptr, caller_handle)                    \
+    std::unique_ptr<smi_session> _smi_sess_;                                 \
+    aga_gpu_handle_t gpu_handle = (caller_handle);                           \
+    if (g_smi_state.lazy_init()) {                                           \
+        _smi_sess_ = std::make_unique<smi_session>();                        \
+        if (!_smi_sess_->ok()) {                                             \
+            AGA_TRACE_ERR("Per-request smi_session init failed");            \
+            return _smi_sess_->ret();                                        \
+        }                                                                    \
+        if ((gpu_key_ptr) != NULL) {                                         \
+            amdsmi_status_t _us = amdsmi_get_processor_handle_from_uuid(     \
+                                      (gpu_key_ptr)->str(), &gpu_handle);   \
+            if (_us != AMDSMI_STATUS_SUCCESS) {                              \
+                AGA_TRACE_ERR("gpu_key->handle resolve failed for {}, "      \
+                              "err {}", (gpu_key_ptr)->str(), _us);          \
+                return amdsmi_ret_to_sdk_ret(_us);                           \
+            }                                                                \
+        }                                                                    \
+    }
+
 /// \brief struct to be used as ctxt when walking GPU db to build topology
 typedef struct gpu_topo_walk_ctxt_s {
     uint32_t count;
+    bool lazy_init;
     gpu_entry *gpu;
+    aga_gpu_handle_t h1;
     aga_device_topology_info_t *info;
 } gpu_topo_walk_ctxt_t;
 
@@ -123,10 +164,14 @@ smi_fill_gpu_clock_frequency_spec_ (aga_gpu_handle_t gpu_handle,
 }
 
 sdk_ret_t
-smi_gpu_fill_spec (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec)
+smi_gpu_fill_spec (aga_gpu_handle_t gpu_handle_in,
+                   const aga_obj_key_t *gpu_key,
+                   aga_gpu_spec_t *spec)
 {
     amdsmi_status_t amdsmi_ret;
     amdsmi_power_cap_info_t power_cap_info = {};
+
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
     // fill fields not avaiable with gim amdsmi library
     spec->overdrive_level = AMDSMI_UINT32_INVALID_VAL;
@@ -792,9 +837,13 @@ smi_get_gpu_partition_id (aga_gpu_handle_t gpu_handle, uint32_t *partition_id)
 }
 
 sdk_ret_t
-smi_gpu_fill_status (aga_gpu_handle_t gpu_handle, uint32_t gpu_id,
+smi_gpu_fill_status (aga_gpu_handle_t gpu_handle_in,
+                     const aga_obj_key_t *gpu_key,
+                     uint32_t gpu_id,
                      aga_gpu_spec_t *spec, aga_gpu_status_t *status)
 {
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
+
     // fill fields not avaiable with gim amdsmi library
     status->xgmi_status.width = AMDSMI_UINT64_INVALID_VAL;
     status->xgmi_status.speed = AMDSMI_UINT64_INVALID_VAL;
@@ -834,7 +883,8 @@ smi_gpu_get_bad_page_records (void *gpu_obj,
 }
 
 sdk_ret_t
-smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
+smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
+                    const aga_obj_key_t *gpu_key,
                     bool is_partitioned,
                     uint32_t partition_id,
                     aga_gpu_handle_t first_partition_handle,
@@ -846,6 +896,8 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
     amdsmi_pcie_info_t pcie_info = {};
     amdsmi_power_info_t power_info = {};
     amdsmi_engine_usage_t usage_info = {};
+
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
     // fill the power and voltage info
     amdsmi_ret = amdsmi_get_power_info(gpu_handle, &power_info);
@@ -1016,13 +1068,17 @@ smi_gpu_power_cap_update_ (aga_gpu_handle_t gpu_handle,
 }
 
 sdk_ret_t
-smi_gpu_update (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
+smi_gpu_update (aga_gpu_handle_t gpu_handle_in,
+                const aga_obj_key_t *gpu_key,
+                aga_gpu_spec_t *spec,
                 uint64_t upd_mask)
 {
     sdk_ret_t ret;
     std::ofstream of;
     std::string dev_path;
     amdsmi_status_t amdsmi_ret;
+
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
     // performance level has to be set to manual (default is auto) to configure
     // the following list of attributes to non default values
@@ -1060,6 +1116,7 @@ smi_gpu_update (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
 static inline bool
 gpu_topo_walk_cb (void *obj, void *ctxt)
 {
+    aga_gpu_handle_t h2;
     gpu_entry *gpu1, *gpu2;
     amdsmi_status_t amdsmi_ret;
     static std::string name = "GPU";
@@ -1072,62 +1129,77 @@ gpu_topo_walk_cb (void *obj, void *ctxt)
     gpu1 = walk_ctxt->gpu;
     info = walk_ctxt->info;
 
-    if (gpu1->handle() != gpu2->handle()) {
-        info->peer_device[walk_ctxt->count].peer_device.type =
-            AGA_DEVICE_TYPE_GPU;
-        strcpy(info->peer_device[walk_ctxt->count].peer_device.name,
-               (name + std::to_string(gpu1->id())).c_str());
-        amdsmi_ret =
-            amdsmi_get_link_topology(gpu1->handle(), gpu2->handle(), &topo);
+    if (gpu1->key() == gpu2->key()) {
+        return false;
+    }
+    if (walk_ctxt->lazy_init) {
+        // resolve fresh handle for gpu2; gpu1's handle is pre-resolved in ctxt.h1
+        amdsmi_ret = amdsmi_get_processor_handle_from_uuid(
+                         gpu2->key().str(), &h2);
         if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
-            AGA_TRACE_ERR("Failed to get link topology between gpus {} and {}, "
-                          "err {}", gpu1->handle(), gpu2->handle(), amdsmi_ret);
-            // in case of error set num hops and link weight to 0xffff and IO
-            // link type to none
-            info->peer_device[walk_ctxt->count].num_hops = 0xffff;
+            AGA_TRACE_ERR("topo walk: UUID->handle failed for gpu {}, err {}",
+                          gpu2->key().str(), amdsmi_ret);
+            return false;    // skip this peer; continue walk
+        }
+    } else {
+        h2 = gpu2->handle();
+    }
+    info->peer_device[walk_ctxt->count].peer_device.type = AGA_DEVICE_TYPE_GPU;
+    strcpy(info->peer_device[walk_ctxt->count].peer_device.name,
+           (name + std::to_string(gpu2->id())).c_str());
+    amdsmi_ret = amdsmi_get_link_topology(walk_ctxt->h1, h2, &topo);
+    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Failed to get link topology between gpus {} and {}, "
+                      "err {}", gpu1->key().str(), gpu2->key().str(), amdsmi_ret);
+        // in case of error set num hops and link weight to 0xffff and IO
+        // link type to none
+        info->peer_device[walk_ctxt->count].num_hops = 0xffff;
+        info->peer_device[walk_ctxt->count].link_weight = 0xffff;
+        info->peer_device[walk_ctxt->count].connection.type = AGA_IO_LINK_TYPE_NONE;
+    } else {
+        info->peer_device[walk_ctxt->count].num_hops = topo.num_hops;
+        info->peer_device[walk_ctxt->count].link_weight = topo.weight;
+        switch (topo.link_type) {
+        case AMDSMI_LINK_TYPE_XGMI:
+            info->peer_device[walk_ctxt->count].connection.type =
+                AGA_IO_LINK_TYPE_XGMI;
+            break;
+        case AMDSMI_LINK_TYPE_PCIE:
+            info->peer_device[walk_ctxt->count].connection.type =
+                AGA_IO_LINK_TYPE_PCIE;
+            break;
+        default:
             info->peer_device[walk_ctxt->count].connection.type =
                 AGA_IO_LINK_TYPE_NONE;
-            info->peer_device[walk_ctxt->count].link_weight = 0xffff;
-        } else {
-            info->peer_device[walk_ctxt->count].num_hops = topo.num_hops;
-            info->peer_device[walk_ctxt->count].link_weight = topo.weight;
-            switch (topo.link_type) {
-            case AMDSMI_LINK_TYPE_XGMI:
-                info->peer_device[walk_ctxt->count].connection.type =
-                    AGA_IO_LINK_TYPE_XGMI;
-                break;
-            case AMDSMI_LINK_TYPE_PCIE:
-                info->peer_device[walk_ctxt->count].connection.type =
-                    AGA_IO_LINK_TYPE_PCIE;
-                break;
-            default:
-                info->peer_device[walk_ctxt->count].connection.type =
-                    AGA_IO_LINK_TYPE_NONE;
-                break;
-            }
+            break;
         }
-        info->peer_device[walk_ctxt->count].valid = true;
-        walk_ctxt->count++;
     }
+    info->peer_device[walk_ctxt->count].valid = true;
+    walk_ctxt->count++;
     return false;
 }
 
 sdk_ret_t
-smi_gpu_fill_device_topology (aga_gpu_handle_t gpu_handle,
+smi_gpu_fill_device_topology (aga_gpu_handle_t gpu_handle_in,
+                              const aga_obj_key_t *gpu_key,
                               aga_device_topology_info_t *info)
 {
     gpu_entry *gpu;
     gpu_topo_walk_ctxt_t ctxt;
 
-    gpu = gpu_db()->find(gpu_handle);
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
+
+    gpu = gpu_db()->find(const_cast<aga_obj_key_t *>(gpu_key));
     if (gpu == NULL) {
-        AGA_TRACE_ERR("Failed to find GPU {}", gpu_handle);
+        AGA_TRACE_ERR("Failed to find GPU {}", gpu_key->str());
         return SDK_RET_ENTRY_NOT_FOUND;
     }
-
     ctxt.count = 0;
     ctxt.info = info;
     ctxt.gpu = gpu;
+    // h1 is already refreshed by AGA_SMI_SESSION_GUARD in lazy mode; reuse it
+    ctxt.h1 = gpu_handle;
+    ctxt.lazy_init = g_smi_state.lazy_init();
 
     // walk gpu db and fill device topology
     gpu_db()->walk_handle_db(gpu_topo_walk_cb, &ctxt);
@@ -1138,11 +1210,15 @@ smi_gpu_fill_device_topology (aga_gpu_handle_t gpu_handle,
 /// \param[in]  gpu_handle  GPU handle
 /// \param[out] key         aga_obj_key_t of the parent GPU
 sdk_ret_t
-smi_get_parent_gpu_uuid (aga_gpu_handle_t gpu_handle, aga_obj_key_t *parent_key)
+smi_get_parent_gpu_uuid (aga_gpu_handle_t gpu_handle_in,
+                         const aga_obj_key_t *gpu_key,
+                         aga_obj_key_t *parent_key)
 {
     amdsmi_bdf_t pcie_bdf;
     amdsmi_status_t status;
     amdsmi_asic_info_t asic_info;
+
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
     // get device BDF
     status = amdsmi_get_gpu_device_bdf(gpu_handle, &pcie_bdf);
@@ -1264,6 +1340,17 @@ smi_discover_gpus (uint32_t *num_gpu, aga_gpu_profile_t *gpu)
     amdsmi_status_t status;
     aga_gpu_handle_t proc_handles[AGA_MAX_GPU];
 
+    // discovery has no gpu_key to refresh against; open the session
+    // manually (AGA_SMI_SESSION_GUARD requires a gpu_key argument)
+    std::unique_ptr<smi_session> _smi_sess_;
+    if (g_smi_state.lazy_init()) {
+        _smi_sess_ = std::make_unique<smi_session>();
+        if (!_smi_sess_->ok()) {
+            AGA_TRACE_ERR("Per-request smi_session init failed in discovery");
+            return _smi_sess_->ret();
+        }
+    }
+
     if (!num_gpu) {
         return SDK_RET_ERR;
     }
@@ -1296,7 +1383,9 @@ smi_discover_gpus (uint32_t *num_gpu, aga_gpu_profile_t *gpu)
 }
 
 sdk_ret_t
-smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
+smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle_in,
+                              const aga_obj_key_t *gpu_key,
+                              aga_gpu_spec_t *spec,
                               aga_gpu_status_t *status)
 {
     amdsmi_fw_info_t fw_info;
@@ -1305,6 +1394,8 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
     amdsmi_board_info_t board_info = {};
     amdsmi_driver_info_t driver_info = {};
     amdsmi_virtualization_mode_t mode;
+
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
     // fill immutable attributes in spec
     // fill gpu and memory clock frequencies
@@ -1394,7 +1485,8 @@ timestamp_string_from_cper_timestamp (amdsmi_cper_timestamp_t *ts)
 }
 
 sdk_ret_t
-smi_gpu_get_cper_entries (aga_gpu_handle_t gpu_handle,
+smi_gpu_get_cper_entries (aga_gpu_handle_t gpu_handle_in,
+                          const aga_obj_key_t *gpu_key,
                           aga_cper_severity_t severity, aga_cper_info_t *info)
 {
     char *cper_data;
@@ -1408,6 +1500,8 @@ smi_gpu_get_cper_entries (aga_gpu_handle_t gpu_handle,
     uint64_t num_cper_hdr = AGA_GPU_MAX_CPER_ENTRY;
     amdsmi_status_t status = AMDSMI_STATUS_MORE_DATA;
     amdsmi_cper_hdr_t *cper_hdrs[AGA_GPU_MAX_CPER_ENTRY];
+
+    AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
     // set severity mask
     switch (severity) {

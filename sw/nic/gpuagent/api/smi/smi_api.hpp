@@ -59,22 +59,29 @@ sdk_ret_t smi_init(aga_api_init_params_t *init_params);
 sdk_ret_t smi_teardown(void);
 
 /// \brief    fill gpu object config specification
-/// \param[in] handle    GPU handle
+/// \param[in] handle    GPU handle (may be stale across amdsmi re-init in
+///                      lazy mode; uuid is used to refresh inside)
+/// \param[in] uuid      stable GPU UUID
 /// \param[out] spec    operational status to be filled
 /// \return     SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_gpu_fill_spec(aga_gpu_handle_t handle,
+                            const aga_obj_key_t *gpu_key,
                             aga_gpu_spec_t *spec);
 
 /// \brief    fill gpu object operational status
-/// \param[in] handle    GPU handle
+/// \param[in] handle    GPU handle (may be stale; uuid refreshes inside)
+/// \param[in] uuid      stable GPU UUID
 /// \param[in] spec      GPU operational spec
 /// \param[out] status    operational status to be filled
 /// \return     SDK_RET_OK or error code in case of failure
-sdk_ret_t smi_gpu_fill_status(aga_gpu_handle_t handle, uint32_t id,
+sdk_ret_t smi_gpu_fill_status(aga_gpu_handle_t handle,
+                              const aga_obj_key_t *gpu_key,
+                              uint32_t id,
                               aga_gpu_spec_t *spec, aga_gpu_status_t *status);
 
 /// \brief    fill gpu object statistics
-/// \param[in] handle                   GPU handle
+/// \param[in] handle                   GPU handle (uuid refreshes inside)
+/// \param[in] uuid                     stable GPU UUID
 /// \param[in] is_partitioned           GPU is partitioned or not
 /// \param[in] partition_id             partition id (or 0 in case of
 ///                                     non-partitioned GPU)
@@ -83,6 +90,7 @@ sdk_ret_t smi_gpu_fill_status(aga_gpu_handle_t handle, uint32_t id,
 /// \param[out] stats    gpu object stats to be filled
 /// \return     SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_gpu_fill_stats(aga_gpu_handle_t handle,
+                             const aga_obj_key_t *gpu_key,
                              bool is_partitioned,
                              uint32_t partition_id,
                              aga_gpu_handle_t first_partition_handle,
@@ -102,18 +110,23 @@ sdk_ret_t smi_gpu_reset(aga_gpu_handle_t handle,
                         aga_gpu_reset_type_t reset_type);
 
 /// \brief     update gpu object
-/// \param[in] handle       GPU handle
+/// \param[in] handle       GPU handle (uuid refreshes inside)
+/// \param[in] uuid         stable GPU UUID
 /// \param[in] spec     spec with updated attributes
 /// \param[in] upd_mask updated attributes bitmask
 /// \return    SDK_RET_OK or error code in case of failure
-sdk_ret_t smi_gpu_update(aga_gpu_handle_t handle, aga_gpu_spec_t *spec,
+sdk_ret_t smi_gpu_update(aga_gpu_handle_t handle,
+                         const aga_obj_key_t *gpu_key,
+                         aga_gpu_spec_t *spec,
                          uint64_t upd_mask);
 
 /// \brief     fill gpu device topology
-/// \param[in] gpu_handle   GPU handle
+/// \param[in] gpu_handle   GPU handle (uuid refreshes inside)
+/// \param[in] uuid         stable GPU UUID
 /// \param[out] info    GPU topology information
 /// \return    SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_gpu_fill_device_topology(aga_gpu_handle_t handle,
+                                       const aga_obj_key_t *gpu_key,
                                        aga_device_topology_info_t *info);
 
 /// \brief     discover gpu devices
@@ -123,9 +136,12 @@ sdk_ret_t smi_gpu_fill_device_topology(aga_gpu_handle_t handle,
 sdk_ret_t smi_discover_gpus(uint32_t *num_gpu, aga_gpu_profile_t *gpu);
 
 /// \brief     function to compute parent GPU's uuid
-/// \param[in]  gpu_handle    handle of GPU device
+/// \param[in]  gpu_handle    handle of GPU device (uuid refreshes inside)
+/// \param[in]  uuid          stable UUID of the child GPU; used to refresh
+///                           gpu_handle in lazy mode
 /// \param[out] parent_key    computed uuid of parent GPU
 sdk_ret_t smi_get_parent_gpu_uuid(aga_gpu_handle_t gpu_handle,
+                                  const aga_obj_key_t *gpu_key,
                                   aga_obj_key_t *parent_key);
 
 /// \brief function to get number of bad pages for GPU
@@ -145,21 +161,25 @@ sdk_ret_t smi_gpu_get_bad_page_records(void *gpu_obj,
                                        aga_gpu_bad_page_record_t *records);
 
 /// \brief function to fill immutable attributes in GPU spec and status
-/// \param[in]  gpu_handle    handle of GPU device
+/// \param[in]  gpu_handle    handle of GPU device (uuid refreshes inside)
+/// \param[in]  uuid          stable GPU UUID
 /// \param[out] spec          GPU spec
 /// \param[out] status        GPU status
 /// \return SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_gpu_init_immutable_attrs(aga_gpu_handle_t gpu_handle,
+                                       const aga_obj_key_t *gpu_key,
                                        aga_gpu_spec_t *spec,
                                        aga_gpu_status_t *status);
 
 /// \brief function to get GPU CPER entries
-/// \param[in]  gpu_handle    handle of GPU device
+/// \param[in]  gpu_handle    handle of GPU device (uuid refreshes inside)
+/// \param[in]  uuid          stable GPU UUID
 /// \param[in]  severity      severity of CPER entries to be retrieved
 ///                           AGA_CPER_SEVERITY_NONE implies all
 /// \param[out] info          GPU CPER information
 /// \return SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_gpu_get_cper_entries(aga_gpu_handle_t gpu_handle,
+                                   const aga_obj_key_t *gpu_key,
                                    aga_cper_severity_t severity,
                                    aga_cper_info_t *info);
 

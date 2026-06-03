@@ -59,11 +59,15 @@ public:
     smi_state() {
         num_gpu_ = 0;
         initialized_ = false;
+        lazy_init_ = false;
         watcher_thread_ = NULL;
     }
 
     /// \brief    destructor
     ~smi_state() {}
+
+    /// \brief    return true if per-request (lazy) init mode is enabled
+    bool lazy_init(void) const { return lazy_init_; }
 
     /// \brief    initialization routine
     /// \param[in] init_params    initialization parameters
@@ -146,6 +150,15 @@ public:
      sdk_ret_t read_counter(aga_gpu_handle_t gpu_handle, uint64_t counter,
                             uint64_t *value);
 
+    /// \brief    update watcher fields of interest for a single GPU
+    ///           (invoked by the watcher's gpu_db walk callback in gimamdsmi)
+    /// \param[in]  gpu_id      GPU id
+    /// \param[in]  gpu_handle  freshly-resolved GPU handle for this tick
+    /// \param[out] watch_db    db to be updated
+    /// \return SDK_RET_OK or error status in case of failure
+    sdk_ret_t smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
+                  aga_gpu_handle_t gpu_handle, aga_gpu_watch_db_t *watch_db);
+
 private:
     /// \brief spawn event monitor thread
     /// \return SDK_RET_OK or error status in case of failure
@@ -167,19 +180,13 @@ private:
     sdk_ret_t cleanup_gpu_watch_inactive_subscribers_(
                   vector<gpu_watch_subscriber_info_t>& subscribers);
 
-    /// \brief    update watcher fields of interest
-    /// \param[in]  gpu_id      GPU id
-    /// \param[in]  gpu_handle  GPU handle
-    /// \param[out] watch_db    db to be updated
-    /// \return SDK_RET_OK or error status in case of failure
-    sdk_ret_t smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
-                  aga_gpu_handle_t gpu_handle, aga_gpu_watch_db_t *watch_db);
-
 private:
     /// initialization state
     bool initialized_;
     /// no. of GPUs in the system
     uint32_t num_gpu_;
+    /// true if AGA_SMI_LAZY_INIT=1 (per-request session mode)
+    bool lazy_init_;
     /// gpu handles
     aga_gpu_handle_t gpu_handles_[AGA_MAX_GPU];
     /// gpu cpunter handles

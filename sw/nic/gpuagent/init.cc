@@ -84,7 +84,8 @@ create_gpus (void)
              (gpu[i].compute_partition != AGA_GPU_COMPUTE_PARTITION_TYPE_SPX)) {
             // this is the first partition; create the parent GPU
             // construct parent GPU uuid
-            ret = aga::smi_get_parent_gpu_uuid(gpu[i].handle, &spec.key);
+            ret = aga::smi_get_parent_gpu_uuid(gpu[i].handle, &gpu[i].key,
+                                               &spec.key);
             if (ret != SDK_RET_OK) {
                 AGA_TRACE_ERR("Failed to compute parent GPU uuid for GPU {}",
                               gpu[i].key.str());

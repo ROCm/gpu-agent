@@ -21,6 +21,8 @@
 ///
 //----------------------------------------------------------------------------
 
+#include <cstdlib>
+#include <memory>
 #include <vector>
 extern "C" {
 #include "nic/third-party/rocm/gim_amd_smi_lib/include/amd_smi/amdsmi.h"
@@ -31,6 +33,7 @@ extern "C" {
 #include "nic/gpuagent/api/aga_state.hpp"
 #include "nic/gpuagent/api/smi/smi_state.hpp"
 #include "nic/gpuagent/api/smi/smi_watch.hpp"
+#include "nic/gpuagent/api/smi/gimamdsmi/smi_session.hpp"
 #include "nic/gpuagent/api/smi/gimamdsmi/smi_utils.hpp"
 
 using std::vector;
@@ -411,13 +414,60 @@ smi_state::smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
     return SDK_RET_OK;
 }
 
+/// per-tick walk context for the watcher
+typedef struct watcher_walk_ctxt_s {
+    smi_state           *state;
+    aga_gpu_watch_db_t  *watch_db;
+} watcher_walk_ctxt_t;
+
+/// walk callback: for each gpu_entry, re-resolve the live amdsmi handle
+/// from the entry's stable UUID and update the watch db
+static bool
+watcher_walk_cb_ (void *obj, void *ctxt)
+{
+    amdsmi_status_t s;
+    aga_obj_key_t key;
+    gpu_entry *e = (gpu_entry *)obj;
+    amdsmi_processor_handle live_handle;
+    watcher_walk_ctxt_t *wctx = (watcher_walk_ctxt_t *)ctxt;
+
+    key = e->key();
+    // parent (partition holder) entries have no live handle; skip
+    if (e->is_parent_gpu()) {
+        return false;
+    }
+    s = amdsmi_get_processor_handle_from_uuid(key.str(), &live_handle);
+    if (s != AMDSMI_STATUS_SUCCESS) {
+        AGA_TRACE_ERR("Watcher UUID->handle failed for gpu {}, err {}",
+                      e->id(), s);
+        return false;    // continue walk; skip this gpu this tick
+    }
+    wctx->state->smi_watcher_update_all_watch_fields_(
+        e->id(), live_handle, wctx->watch_db);
+    return false;
+}
+
 sdk_ret_t
 smi_state::watcher_update_watch_db(aga_gpu_watch_db_t *watch_db) {
-    // loop through all gpu devices
-    for (uint32_t gpu = 0; gpu < num_gpu_; gpu++) {
-        // update watch db
-        smi_watcher_update_all_watch_fields_(gpu, gpu_handles_[gpu], watch_db);
+    watcher_walk_ctxt_t ctxt = { this, watch_db };
+
+    // acquire amdsmi session if in lazy init mode; the session is held only
+    // for the duration of the tick, then released so /dev/gim-smi0 can be
+    // reclaimed when idle. Multiple concurrent sessions (gRPC handlers +
+    // watcher) coexist on the same refcount-gated amdsmi init.
+    std::unique_ptr<smi_session> sess;
+    if (lazy_init_) {
+        sess = std::make_unique<smi_session>();
+        if (!sess->ok()) {
+            AGA_TRACE_ERR("Per-request smi_session init failed in watcher");
+            return sess->ret();
+        }
     }
+    // walk gpu_db; the entry's UUID (key()) is the canonical, stable id.
+    // gpu_db is populated by create_gpus() after smi_init() returns, so
+    // during the AGA_WATCHER_START_DELAY window this walk iterates zero
+    // entries and is a safe no-op.
+    gpu_db()->walk_handle_db(watcher_walk_cb_, &ctxt);
     return SDK_RET_OK;
 }
 
@@ -697,25 +747,53 @@ smi_state::init(aga_api_init_params_t *init_params) {
     amdsmi_status_t status;
     aga_gpu_profile_t gpu[AGA_MAX_GPU];
 
-    // initialize smi library
-    status = amdsmi_init(AMDSMI_INIT_AMD_GPUS);
-    if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
-        AGA_TRACE_ERR("Failed to initialize amd smi library, err {}", status);
-        return amdsmi_ret_to_sdk_ret(status);
+    // check if per-request (lazy) init mode is requested
+    const char *lazy = std::getenv("AGA_SMI_LAZY_INIT");
+    lazy_init_ = (lazy != NULL && lazy[0] == '1');
+    if (lazy_init_) {
+        AGA_TRACE_INFO("AGA_SMI_LAZY_INIT=1: amdsmi will be initialized "
+                       "per-request, /dev/gim-smi0 released between calls");
+        // lazy mode: open a one-shot session to discover GPUs and capture
+        // num_gpu_; handles are not cached because they are stale after
+        // session close. Subsequent calls (create_gpus -> per-request
+        // entry points -> watcher) each refresh handles via UUID inside
+        // their own session.
+        smi_session session;
+        if (!session.ok()) {
+            AGA_TRACE_ERR("smi_session failed during init, err {}",
+                          session.amdsmi_ret());
+            return session.ret();
+        }
+        ret = aga::smi_discover_gpus(&num_gpu_, gpu);
+        if (ret != SDK_RET_OK) {
+            return ret;
+        }
+        // session destroyed at end of scope - amdsmi_shut_down called,
+        // /dev/gim-smi0 released
+    } else {
+        AGA_TRACE_INFO("AGA_SMI_LAZY_INIT not set: amdsmi persistent mode, "
+                       "/dev/gim-smi0 held open for process lifetime");
+        // persistent mode: amdsmi_init runs once, never torn down. Handles
+        // discovered here remain valid for the lifetime of the process.
+        status = amdsmi_init(AMDSMI_INIT_AMD_GPUS);
+        if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to initialize amd smi library in "
+                          "persistent mode, err {}", status);
+            return amdsmi_ret_to_sdk_ret(status);
+        }
+        ret = aga::smi_discover_gpus(&num_gpu_, gpu);
+        if (ret != SDK_RET_OK) {
+            return ret;
+        }
+        for (uint32_t i = 0; i < num_gpu_; i++) {
+            gpu_handles_[i] = gpu[i].handle;
+        }
     }
-    // discover gpus
-    ret = aga::smi_discover_gpus(&num_gpu_, gpu);
-    if (ret != SDK_RET_OK) {
-        return ret;
-    }
-    for (uint32_t i = 0; i < num_gpu_; i++) {
-        gpu_handles_[i] = gpu[i].handle;
-    }
+
     // spawn event monitor thread
     spawn_event_monitor_thread_();
     // spawn watcher thread
     spawn_watcher_thread_();
-    initialized_ = true;
     return SDK_RET_OK;
 }
 
@@ -724,19 +802,20 @@ smi_state::teardown (void)
 {
     amdsmi_status_t status;
 
-    if (!initialized_) {
-        return SDK_RET_OK;
-    }
-    // stop the watcher thread before shutting down the SMI library to
-    // avoid racing with the watcher timer callback which calls SMI APIs
-    if (watcher_thread_) {
-        watcher_thread_->stop();
-        watcher_thread_->wait();
-    }
-    status = amdsmi_shut_down();
-    if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
-        AGA_TRACE_ERR("Failed to shutdown amd smi library, err {}", status);
-        return amdsmi_ret_to_sdk_ret(status);
+    // in lazy mode amdsmi is not persistently held; nothing to shut down.
+    // in persistent mode the watcher must stop before amdsmi_shut_down so
+    // it cannot race on SMI APIs during teardown.
+    if (!lazy_init_) {
+        if (watcher_thread_) {
+            watcher_thread_->stop();
+            watcher_thread_->wait();
+        }
+        status = amdsmi_shut_down();
+        if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to shutdown gim amd smi library, err {}",
+                          status);
+            return amdsmi_ret_to_sdk_ret(status);
+        }
     }
     return SDK_RET_OK;
 }

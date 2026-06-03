@@ -140,7 +140,7 @@ gpu_entry::update_handler(api_params_base *api_params) {
     if (memcmp(&spec_.ras_spec, &spec->ras_spec, sizeof(aga_gpu_ras_spec_t))) {
         upd_mask |= AGA_GPU_UPD_RAS_SPEC;
     }
-    ret = smi_gpu_update(handle_, spec, upd_mask);
+    ret = smi_gpu_update(handle_, &key_, spec, upd_mask);
     if (unlikely(ret != SDK_RET_OK)) {
         return ret;
     }
@@ -156,7 +156,7 @@ gpu_entry::fill_stats_(aga_gpu_stats_t *stats) {
         return;
     }
     // fetch stats from smi apis
-    smi_gpu_fill_stats(handle_, is_partitioned_,
+    smi_gpu_fill_stats(handle_, &key_, is_partitioned_,
         (partition_id_ == AGA_GPU_INVALID_PARTITION_ID) ? 0 : partition_id_,
         first_partition_handle_, stats);
 }
@@ -175,7 +175,7 @@ gpu_entry::fill_status_(aga_gpu_spec_t *spec, aga_gpu_status_t *status) {
         if (parent_gpu_.valid()) {
             status->physical_gpu = parent_gpu_;
         }
-        smi_gpu_fill_status(handle_, id_, spec, status);
+        smi_gpu_fill_status(handle_, &key_, id_, spec, status);
     }
 }
 
@@ -186,7 +186,7 @@ gpu_entry::init_immutable_attrs(void) {
     status_.handle = handle_;
     status_.partition_id = partition_id_;
     // fill other immutable attributes that we can get from API calls
-    smi_gpu_init_immutable_attrs(handle_, &spec_, &status_);
+    smi_gpu_init_immutable_attrs(handle_, &key_, &spec_, &status_);
 }
 
 void
@@ -196,7 +196,7 @@ gpu_entry::fill_spec_(aga_gpu_spec_t *spec) {
     if (!child_gpus_.size()) {
         // copy information that we got at init time
         memcpy(spec, &spec_, sizeof(aga_gpu_spec_t));
-        smi_gpu_fill_spec(handle_, spec);
+        smi_gpu_fill_spec(handle_, &key_, spec);
     }
 }
 
@@ -214,7 +214,7 @@ gpu_entry::read_topology(aga_device_topology_info_t *info) {
 
     strcpy(info->device.name, device_name.c_str());
     info->device.type = AGA_DEVICE_TYPE_GPU;
-    smi_gpu_fill_device_topology(handle_, info);
+    smi_gpu_fill_device_topology(handle_, &key_, info);
     return SDK_RET_OK;
 }
 

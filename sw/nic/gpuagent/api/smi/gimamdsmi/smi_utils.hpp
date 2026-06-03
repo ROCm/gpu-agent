@@ -36,6 +36,11 @@ namespace aga {
 /// \defgroup AGA_SMI - smi module APIs
 /// \ingroup AGA
 /// @{
+///
+/// NOTE:
+/// for UUID->string conversion needed by amdsmi APIs (e.g.
+/// amdsmi_get_processor_handle_from_uuid), use the canonical
+/// aga_obj_key_t::str() helper in nic/gpuagent/api/include/base.hpp
 
 /// \brief convert amdsmi VRAM type to aga VRAM type
 /// \param[in] vram_type    amdsmi VRAM type

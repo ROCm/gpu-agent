@@ -99,7 +99,9 @@ smi_fill_gpu_clock_frequency_spec_ (aga_gpu_handle_t gpu_handle,
 }
 
 sdk_ret_t
-smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
+smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle,
+                              const aga_obj_key_t *gpu_key,
+                              aga_gpu_spec_t *spec,
                               aga_gpu_status_t *status)
 {
     // no need to do anything for mock
@@ -107,7 +109,9 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
 }
 
 sdk_ret_t
-smi_gpu_fill_spec (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec)
+smi_gpu_fill_spec (aga_gpu_handle_t gpu_handle,
+                   const aga_obj_key_t *gpu_key,
+                   aga_gpu_spec_t *spec)
 {
     spec->overdrive_level = 0;
     spec->perf_level = AGA_GPU_PERF_LEVEL_AUTO;
@@ -199,7 +203,9 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle, aga_gpu_status_t *status)
 }
 
 sdk_ret_t
-smi_gpu_fill_status (aga_gpu_handle_t gpu_handle, uint32_t gpu_id,
+smi_gpu_fill_status (aga_gpu_handle_t gpu_handle,
+                     const aga_obj_key_t *gpu_key,
+                     uint32_t gpu_id,
                      aga_gpu_spec_t *spec, aga_gpu_status_t *status)
 {
     status->index = gpu_id;
@@ -259,6 +265,7 @@ smi_gpu_fill_status (aga_gpu_handle_t gpu_handle, uint32_t gpu_id,
 
 sdk_ret_t
 smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
+                    const aga_obj_key_t *gpu_key,
                     bool is_partitioned,
                     uint32_t partition_id,
                     aga_gpu_handle_t first_partition_handle,
@@ -643,7 +650,9 @@ smi_gpu_reset (aga_gpu_handle_t gpu_handle, aga_gpu_reset_type_t reset_type)
 }
 
 sdk_ret_t
-smi_gpu_update (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
+smi_gpu_update (aga_gpu_handle_t gpu_handle,
+                const aga_obj_key_t *gpu_key,
+                aga_gpu_spec_t *spec,
                 uint64_t upd_mask)
 {
     return SDK_RET_OK;
@@ -651,6 +660,7 @@ smi_gpu_update (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
 
 sdk_ret_t
 smi_gpu_fill_device_topology (aga_gpu_handle_t gpu_handle,
+                              const aga_obj_key_t *gpu_key,
                               aga_device_topology_info_t *info)
 {
     uint32_t gpu_id;
@@ -714,7 +724,9 @@ parse_uuid_to_key_and_handle (const std::string& uuid, aga_obj_key_t& key,
 }
 
 sdk_ret_t
-smi_get_parent_gpu_uuid (aga_gpu_handle_t gpu_handle, aga_obj_key_t *parent_key)
+smi_get_parent_gpu_uuid (aga_gpu_handle_t gpu_handle,
+                         const aga_obj_key_t *gpu_key,
+                         aga_obj_key_t *parent_key)
 {
     *parent_key = g_gpu_map[gpu_handle].key;
     return SDK_RET_OK;
@@ -853,21 +865,22 @@ smi_gpu_get_bad_page_records (void *gpu_obj,
 
 sdk_ret_t
 smi_gpu_get_cper_entries (aga_gpu_handle_t gpu_handle,
+                          const aga_obj_key_t *gpu_key,
                           aga_cper_severity_t severity, aga_cper_info_t *info)
 {
-    uint64_t gpu_key;
+    uint64_t handle_val;
     std::ostringstream oss;
     auto cper_entry = &info->cper_entry[info->num_cper_entry++];
 
-    gpu_key = (uint64_t)gpu_handle;
-    oss << (gpu_key % 8) + 1 << ":" << (gpu_key+ 5) % 8 + 1;
+    handle_val = (uint64_t)gpu_handle;
+    oss << (handle_val % 8) + 1 << ":" << (handle_val + 5) % 8 + 1;
     cper_entry->record_id = oss.str();
     cper_entry->severity = AGA_CPER_SEVERITY_FATAL;
     cper_entry->revision = 256;
 
     oss.str("");
     oss << std::setfill('0') << "2025-09-" << std::setw(2) <<
-        (gpu_key % 31) + 1 << " 15:00:" << std::setw(2) << (gpu_key % 60) + 1;
+        (handle_val % 31) + 1 << " 15:00:" << std::setw(2) << (handle_val % 60) + 1;
     cper_entry->timestamp = oss.str();
     cper_entry->notification_type = AGA_CPER_NOTIFICATION_TYPE_MCE;
     cper_entry->creator_id = "amdgpu";
