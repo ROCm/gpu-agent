@@ -391,6 +391,7 @@ fill_gpu_fw_version_ (aga_gpu_fw_version_t *fw_version, amdsmi_fw_block_t block,
     std::string block_name = gpu_fw_block_name_str_(block);
 
     strncpy(fw_version->firmware, block_name.c_str(), AGA_MAX_STR_LEN);
+    fw_version->firmware[AGA_MAX_STR_LEN] = '\0';
     if ((block == AMDSMI_FW_ID_VCN) || (block == AMDSMI_FW_ID_UVD) ||
         (block == AMDSMI_FW_ID_VCE) ||
         (block == AMDSMI_FW_ID_ASD) || (block == AMDSMI_FW_ID_CP_MES) ||
@@ -415,6 +416,7 @@ fill_gpu_fw_version_ (aga_gpu_fw_version_t *fw_version, amdsmi_fw_block_t block,
         strncpy(fw_version->version, std::to_string(version).c_str(),
                 AGA_MAX_STR_LEN);
     }
+    fw_version->version[AGA_MAX_STR_LEN] = '\0';
 }
 
 /// \brief      get SKU from VBIOS version
@@ -441,6 +443,7 @@ gpu_get_sku_from_vbios_ (char *sku, char *vbios)
         return;
     }
     strncpy(sku, token, AGA_MAX_STR_LEN);
+    sku[AGA_MAX_STR_LEN] = '\0';
 }
 
 /// \brief    fill GPU enumeration ids info using the given GPU
@@ -756,7 +759,8 @@ smi_fill_vram_status_ (aga_gpu_handle_t gpu_handle,
                       gpu_handle, amdsmi_ret);
     } else {
         status->type = smi_to_aga_vram_type(info.vram_type);
-        memcpy(status->vendor, info.vram_vendor, AGA_MAX_STR_LEN);
+        strncpy(status->vendor, info.vram_vendor, AGA_MAX_STR_LEN);
+        status->vendor[AGA_MAX_STR_LEN] = '\0';
         status->size = info.vram_size;
     }
     return SDK_RET_OK;
@@ -1820,8 +1824,10 @@ gpu_topo_walk_cb (void *obj, void *ctxt)
     if (gpu1->handle() != gpu2->handle()) {
         info->peer_device[walk_ctxt->count].peer_device.type =
             AGA_DEVICE_TYPE_GPU;
-        strcpy(info->peer_device[walk_ctxt->count].peer_device.name,
-               (name + std::to_string(gpu2->id())).c_str());
+        strncpy(info->peer_device[walk_ctxt->count].peer_device.name,
+                (name + std::to_string(gpu2->id())).c_str(), AGA_MAX_STR_LEN);
+        info->peer_device[walk_ctxt->count].peer_device.name[AGA_MAX_STR_LEN] =
+            '\0';
         amdsmi_ret =
             amdsmi_topo_get_link_type(gpu1->handle(), gpu2->handle(),
                 &info->peer_device[walk_ctxt->count].num_hops,
@@ -2091,6 +2097,7 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
     uint64_t value_64;
     amdsmi_fw_info_t fw_info;
     amdsmi_status_t amdsmi_ret;
+    amdsmi_asic_info_t asic_info;
     amdsmi_vbios_info_t vbios_info;
     amdsmi_board_info_t board_info;
     amdsmi_driver_info_t driver_info;
@@ -2115,20 +2122,36 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
     } else {
         status->virtualization_mode = smi_to_aga_virtualization_mode(mode);
     }
-    memcpy(status->serial_num, board_info.product_serial, AGA_MAX_STR_LEN);
+    strncpy(status->serial_num, board_info.product_serial, AGA_MAX_STR_LEN);
+    status->serial_num[AGA_MAX_STR_LEN] = '\0';
     // fill the GPU card series
-    memcpy(status->card_series, board_info.product_name, AGA_MAX_STR_LEN);
+    strncpy(status->card_series, board_info.product_name, AGA_MAX_STR_LEN);
+    status->card_series[AGA_MAX_STR_LEN] = '\0';
     // fill the GPU vendor information
-    memcpy(status->card_vendor, board_info.manufacturer_name, AGA_MAX_STR_LEN);
+    strncpy(status->card_vendor, board_info.manufacturer_name, AGA_MAX_STR_LEN);
+    status->card_vendor[AGA_MAX_STR_LEN] = '\0';
     // fill the GPU card model
-    memcpy(status->card_model, board_info.model_number, AGA_MAX_STR_LEN);
+    strncpy(status->card_model, board_info.model_number, AGA_MAX_STR_LEN);
+    status->card_model[AGA_MAX_STR_LEN] = '\0';
+    // consumer GPUs leave board_info marketing fields empty; fall back to the
+    // driver-reported market name from asic_info
+    if ((status->card_model[0] == '\0') || (!strcmp(status->card_model, "N/A"))) {
+        amdsmi_ret = amdsmi_get_gpu_asic_info(gpu_handle, &asic_info);
+        if ((amdsmi_ret == AMDSMI_STATUS_SUCCESS) &&
+            (asic_info.market_name[0] != '\0')) {
+            strncpy(status->card_model, asic_info.market_name,
+                    AGA_MAX_STR_LEN);
+            status->card_model[AGA_MAX_STR_LEN] = '\0';
+        }
+    }
     // fill the driver version
     amdsmi_ret = amdsmi_get_gpu_driver_info(gpu_handle, &driver_info);
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
         AGA_TRACE_ERR("Failed to get system driver information, GPU {}, err {}",
                       gpu_handle, amdsmi_ret);
     }
-    memcpy(status->driver_version, driver_info.driver_version, AGA_MAX_STR_LEN);
+    strncpy(status->driver_version, driver_info.driver_version, AGA_MAX_STR_LEN);
+    status->driver_version[AGA_MAX_STR_LEN] = '\0';
 
     // fill the vbios version
     amdsmi_ret = amdsmi_get_gpu_vbios_info(gpu_handle, &vbios_info);
@@ -2137,8 +2160,10 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec,
                       gpu_handle, amdsmi_ret);
     } else {
         strncpy(status->vbios_version, vbios_info.version, AGA_MAX_STR_LEN);
+        status->vbios_version[AGA_MAX_STR_LEN] = '\0';
         strncpy(status->vbios_part_number, vbios_info.part_number,
                 AGA_MAX_STR_LEN);
+        status->vbios_part_number[AGA_MAX_STR_LEN] = '\0';
         // sku should be retrieved from vbios version
         gpu_get_sku_from_vbios_(status->card_sku, vbios_info.part_number);
     }
