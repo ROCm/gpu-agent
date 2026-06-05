@@ -176,7 +176,7 @@ $(TARGET)_gim: build-libs gogo-protos gen-protos $(OBJ_GIM)
 .PHONY: mod
 mod:
 	@go mod tidy
-	@go mod edit -go=1.25.8
+	@go mod edit -go=1.25.11
 	#CVE-2024-24790 - gpuctl
 	@go mod edit -replace golang.org/x/net@v0.30.0=golang.org/x/net@v0.38.0
 	#CVE-2026-33186
