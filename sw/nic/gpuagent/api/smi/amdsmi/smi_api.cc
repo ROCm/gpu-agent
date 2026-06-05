@@ -144,6 +144,12 @@ smi_gpu_fill_spec (aga_gpu_handle_t gpu_handle, aga_gpu_spec_t *spec)
     uint32_t sensor_idx[AGA_GPU_MAX_POWER_CAP_SENSOR];
     amdsmi_power_cap_type_t sensor_types[AGA_GPU_MAX_POWER_CAP_SENSOR];
 
+    // warm-up read to settle the RDNA4 cold-read gfx_activity artifact
+    amdsmi_ret = amdsmi_get_gpu_metrics_info(gpu_handle, &metrics_info);
+    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Warm-up GPU metrics read failed for GPU {}, err {}",
+                      gpu_handle, amdsmi_ret);
+    }
     // re-fetch gpu metrics for this GPU handle
     amdsmi_ret = amdsmi_get_gpu_metrics_info(gpu_handle, &metrics_info);
     {
