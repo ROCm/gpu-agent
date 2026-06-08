@@ -63,24 +63,25 @@ namespace aga {
 ///         `caller_handle` and a `const aga_obj_key_t *gpu_key`):
 ///             AGA_SMI_SESSION_GUARD(gpu_key, caller_handle);
 ///             // ... amdsmi calls now use the refreshed local `gpu_handle` ...
-#define AGA_SMI_SESSION_GUARD(gpu_key_ptr, caller_handle)                    \
-    std::unique_ptr<smi_session> _smi_sess_;                                 \
-    aga_gpu_handle_t gpu_handle = (caller_handle);                           \
-    if (g_smi_state.lazy_init()) {                                           \
-        _smi_sess_ = std::make_unique<smi_session>();                        \
-        if (!_smi_sess_->ok()) {                                             \
-            AGA_TRACE_ERR("Per-request smi_session init failed");            \
-            return _smi_sess_->ret();                                        \
-        }                                                                    \
-        if ((gpu_key_ptr) != NULL) {                                         \
-            amdsmi_status_t _us = amdsmi_get_processor_handle_from_uuid(     \
-                                      (gpu_key_ptr)->str(), &gpu_handle);   \
-            if (_us != AMDSMI_STATUS_SUCCESS) {                              \
-                AGA_TRACE_ERR("gpu_key->handle resolve failed for {}, "      \
-                              "err {}", (gpu_key_ptr)->str(), _us);          \
-                return amdsmi_ret_to_sdk_ret(_us);                           \
-            }                                                                \
-        }                                                                    \
+#define AGA_SMI_SESSION_GUARD(gpu_key_ptr, caller_handle)                  \
+    std::unique_ptr<smi_session> _smi_sess_;                               \
+    aga_gpu_handle_t gpu_handle = (caller_handle);                         \
+    if (g_smi_state.lazy_init()) {                                         \
+        _smi_sess_ = std::make_unique<smi_session>();                      \
+        if (!_smi_sess_->ok()) {                                           \
+            AGA_TRACE_ERR("Per-request smi_session init failed");          \
+            return _smi_sess_->ret();                                      \
+        }                                                                  \
+        if ((gpu_key_ptr) != NULL) {                                       \
+            amdsmi_status_t _us =                                          \
+                amdsmi_get_processor_handle_from_uuid(                     \
+                    (gpu_key_ptr)->str(), &gpu_handle);                    \
+            if (_us != AMDSMI_STATUS_SUCCESS) {                            \
+                AGA_TRACE_ERR("gpu_key->handle resolve failed for {}, "    \
+                              "err {}", (gpu_key_ptr)->str(), _us);        \
+                return amdsmi_ret_to_sdk_ret(_us);                         \
+            }                                                              \
+        }                                                                  \
     }
 
 /// \brief struct to be used as ctxt when walking GPU db to build topology
