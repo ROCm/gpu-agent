@@ -46,9 +46,10 @@ static inline void
 find_low_high_frequency (amdsmi_frequencies_t *freq,
                          uint32_t *min, uint32_t *max)
 {
-    // create a vector of the valid frequencies
-    std::vector<uint64_t> f(freq->frequency,
-                            freq->frequency + freq->num_supported);
+    // clamp num_supported to the array bound before building the vector
+    uint32_t n = (freq->num_supported < AMDSMI_MAX_NUM_FREQUENCIES) ?
+                      freq->num_supported : AMDSMI_MAX_NUM_FREQUENCIES;
+    std::vector<uint64_t> f(freq->frequency, freq->frequency + n);
 
     // sort vector
     std::sort(f.begin(), f.end());
@@ -74,6 +75,24 @@ find_low_high_frequency (amdsmi_frequencies_t *freq,
         *max = (uint32_t)(f[f.size() - 1]/1000000);
     }
     return;
+}
+
+/// \brief return current raw frequency in Hz, clamping an out-of-bounds index
+/// \param[in] freq    frequencies struct from amdsmi
+/// \return    current frequency in Hz; 0 when no supported frequencies,
+///            else the first entry if current is out of range
+static inline uint64_t
+current_frequency_hz (amdsmi_frequencies_t *freq)
+{
+    uint32_t n, idx;
+
+    if (freq->num_supported == 0) {
+        return 0;
+    }
+    n = (freq->num_supported < AMDSMI_MAX_NUM_FREQUENCIES) ?
+             freq->num_supported : AMDSMI_MAX_NUM_FREQUENCIES;
+    idx = (freq->current < n) ? freq->current : 0;
+    return freq->frequency[idx];
 }
 
 /// \brief convert amdsmi virtualization mode to aga vritualization mode

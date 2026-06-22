@@ -528,6 +528,7 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
                         aga_gpu_spec_t *spec, aga_gpu_status_t *status,
                         amdsmi_gpu_metrics_t *metrics_info)
 {
+    uint64_t cur_freq;
     uint32_t clk_cnt = 0;
     amdsmi_status_t amdsmi_ret;
     uint32_t low_freq, high_freq;
@@ -642,10 +643,12 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
     }
     // data fabric clock
     amdsmi_ret = amdsmi_get_clk_freq(gpu_handle, AMDSMI_CLK_TYPE_DF, &freq);
+    cur_freq = current_frequency_hz(&freq);
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
         AGA_TRACE_ERR("Failed to get data fabric clock frequencies for GPU {}, "
                       "err {}", gpu_handle, amdsmi_ret);
-    } else {
+    } else if (cur_freq != AMDSMI_INVALID_UINT32) {
+        // skip clock types whose current frequency is reported as NA
         low_freq = high_freq = 0;
         clock_status = &status->clock_status[clk_cnt];
         // min and max frequencies are per clock type
@@ -653,17 +656,19 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
                                 &clock_status->low_frequency,
                                 &clock_status->high_frequency);
         clock_status->clock_type = AGA_GPU_CLOCK_TYPE_FABRIC;
-        clock_status->frequency = freq.frequency[freq.current]/1000000;
+        clock_status->frequency = cur_freq / 1000000;
         clock_status->deep_sleep =
             (clock_status->frequency < clock_status->low_frequency);
         clk_cnt++;
     }
     // DCE clock
     amdsmi_ret = amdsmi_get_clk_freq(gpu_handle, AMDSMI_CLK_TYPE_DCEF, &freq);
+    cur_freq = current_frequency_hz(&freq);
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
         AGA_TRACE_ERR("Failed to get DCE clock frequencies for GPU {}, err {}",
                       gpu_handle, amdsmi_ret);
-    } else {
+    } else if (cur_freq != AMDSMI_INVALID_UINT32) {
+        // skip clock types whose current frequency is reported as NA
         low_freq = high_freq = 0;
         clock_status = &status->clock_status[clk_cnt];
         // min and max frequencies are per clock type
@@ -671,17 +676,19 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
                                 &clock_status->low_frequency,
                                 &clock_status->high_frequency);
         clock_status->clock_type = AGA_GPU_CLOCK_TYPE_DCE;
-        clock_status->frequency = freq.frequency[freq.current]/1000000;
+        clock_status->frequency = cur_freq / 1000000;
         clock_status->deep_sleep =
             (clock_status->frequency < clock_status->low_frequency);
         clk_cnt++;
     }
     // PCIe clock
     amdsmi_ret = amdsmi_get_clk_freq(gpu_handle, AMDSMI_CLK_TYPE_PCIE, &freq);
+    cur_freq = current_frequency_hz(&freq);
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
         AGA_TRACE_ERR("Failed to get PCIe clock frequencies for GPU {}, err {}",
                       gpu_handle, amdsmi_ret);
-    } else {
+    } else if (cur_freq != AMDSMI_INVALID_UINT32) {
+        // skip clock types whose current frequency is reported as NA
         low_freq = high_freq = 0;
         clock_status = &status->clock_status[clk_cnt];
         // min and max frequencies are per clock type
@@ -689,7 +696,7 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
                                 &clock_status->low_frequency,
                                 &clock_status->high_frequency);
         clock_status->clock_type = AGA_GPU_CLOCK_TYPE_PCIE;
-        clock_status->frequency = freq.frequency[freq.current]/1000000;
+        clock_status->frequency = cur_freq / 1000000;
         clock_status->deep_sleep =
             (clock_status->frequency < clock_status->low_frequency);
         clk_cnt++;
