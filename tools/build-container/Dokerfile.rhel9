@@ -1,6 +1,6 @@
 # This container provides a development environment with all necessary 
 # compilation and development tools pre-installed.
-ARG BUILD_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:9.4
+ARG BUILD_BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:9.8
 FROM ${BUILD_BASE_IMAGE}
 
 LABEL maintainer="praveenkumar.shanmugam@amd.com"
