@@ -1263,6 +1263,9 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
                     aga_gpu_stats_t *stats)
 {
     amdsmi_status_t amdsmi_ret;
+    amdsmi_npm_info_t npm_info = {};
+    amdsmi_power_info_t power_info = {};
+    amdsmi_node_handle node_handle = {};
     uint64_t sent, received, max_pkt_size;
     amdsmi_gpu_metrics_t metrics_info = {};
     amdsmi_gpu_metrics_t cached_metrics = {};
@@ -1276,6 +1279,18 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
 
     // fill VRAM usage
     smi_fill_vram_usage_(gpu_handle, &stats->vram_usage);
+    // UBB node power + cap (MI350X+); decodes to 0 where unsupported
+    amdsmi_ret = amdsmi_get_power_info(gpu_handle, &power_info);
+    if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
+        stats->ubb_power = power_info.ubb_power;
+    }
+    amdsmi_ret = amdsmi_get_node_handle(gpu_handle, &node_handle);
+    if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
+        amdsmi_ret = amdsmi_get_npm_info(node_handle, &npm_info);
+        if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
+            stats->ubb_power_cap = npm_info.ubb_power_threshold;
+        }
+    }
     // fill additional statistics from gpu metrics
     {
         std::lock_guard<std::mutex> lock(g_gpu_metrics_mutex);

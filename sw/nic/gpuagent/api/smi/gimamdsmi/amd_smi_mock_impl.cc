@@ -17,18 +17,16 @@
 //----------------------------------------------------------------------------
 ///
 /// \file
-/// smi layer mock API definitions using amd-smi apis
+/// smi layer mock API definitions using gim amd-smi apis
 ///
 //----------------------------------------------------------------------------
 
-#include "time.h"
+#include <time.h>
 #include "nic/sdk/include/sdk/base.hpp"
+#include "nic/gpuagent/core/trace.hpp"
 #include "nic/gpuagent/api/smi/smi.hpp"
 #include "nic/gpuagent/api/smi/smi_api_mock_impl.hpp"
 #include "nic/gpuagent/api/smi/gimamdsmi/smi_utils.hpp"
-
-/// global array of GPU handles
-static aga_gpu_handle_t g_gpu_handles[AGA_MAX_GPU];
 
 namespace aga {
 
@@ -88,32 +86,16 @@ gpu_get_unique_id (uint32_t gpu_idx)
 void *
 event_get (void)
 {
-    static amdsmi_evt_notification_data_t event_ntfn_data;
     static uint8_t dev = 0;
+    static amdsmi_evt_notification_data_t event_ntfn_data;
 
     event_ntfn_data.processor_handle = g_gpu_handles[dev % AGA_MOCK_NUM_GPU];
-    switch (dev%5) {
-    case 0:
-        event_ntfn_data.event = AMDSMI_EVT_NOTIF_RING_HANG;
-        break;
-    case 1:
-        event_ntfn_data.event = AMDSMI_EVT_NOTIF_GPU_POST_RESET;
-        break;
-    case 2:
-        event_ntfn_data.event = AMDSMI_EVT_NOTIF_GPU_PRE_RESET;
-        break;
-    case 3:
-        event_ntfn_data.event = AMDSMI_EVT_NOTIF_THERMAL_THROTTLE;
-        break;
-    case 4:
-        event_ntfn_data.event = AMDSMI_EVT_NOTIF_VMFAULT;
-        break;
-    default:
-        break;
-    }
+    // events range from 1 to AMDSMI_EVT_NOTIF_LAST
+    event_ntfn_data.event =
+        amdsmi_evt_notification_type_t((dev%AMDSMI_EVT_NOTIF_LAST) + 1);
     strncpy(event_ntfn_data.message, "test event",
-            MAX_EVENT_NOTIFICATION_MSG_SIZE);
-    dev++;
+            AMDSMI_MAX_STRING_LENGTH);
+    ++dev;
 
     return &event_ntfn_data;
 }

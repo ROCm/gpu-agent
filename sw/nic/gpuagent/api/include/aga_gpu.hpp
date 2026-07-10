@@ -817,6 +817,10 @@ typedef struct aga_gpu_stats_s {
     aga_gpu_xgmi_link_stats_t xgmi_link_stats[AGA_GPU_MAX_XGMI_LINKS];
     /// GPU violation statistics
     aga_gpu_violation_stats_t violation_stats;
+    /// UBB node power (in Watts), MI350X+
+    uint64_t ubb_power;
+    /// UBB node power threshold/cap (in Watts), MI350X+
+    uint64_t ubb_power_cap;
 } aga_gpu_stats_t;
 
 /// GPU info

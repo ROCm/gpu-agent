@@ -24,6 +24,8 @@
 #include <memory>
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
+#include <cstring>
 extern "C" {
 #include "nic/third-party/rocm/gim_amd_smi_lib/include/amd_smi/amdsmi.h"
 }
@@ -45,6 +47,8 @@ namespace aga {
 #define AMDSMI_UINT32_INVALID_VAL       0xffffffff
 #define AMDSMI_UINT64_INVALID_VAL       0xffffffffffffffff
 #define CPER_BUF_SIZE                   (4 * 1024 * 1024) // 4 MB
+// max metric records a single gpu_metrics stream can carry (per amdsmi.h)
+#define AGA_GIM_MAX_METRICS             AMDSMI_MAX_NUM_METRICS
 
 /// \brief  per-request session guard that ALSO refreshes the GPU handle
 ///         from its stable gpu_key (UUID). In lazy_init mode, opens a
@@ -620,6 +624,40 @@ smi_fill_pcie_status_ (aga_gpu_handle_t gpu_handle,
     return SDK_RET_OK;
 }
 
+static sdk_ret_t
+smi_get_gpu_metrics_stream (aga_gpu_handle_t gpu_handle,
+                            amdsmi_metric_t *metrics_list,
+                            uint32_t *metrics_count)
+{
+    amdsmi_status_t amdsmi_ret;
+    uint32_t count = AGA_GIM_MAX_METRICS;
+
+    *metrics_count = 0;
+    amdsmi_ret = amdsmi_get_gpu_metrics(gpu_handle, &count, nullptr);
+    if (amdsmi_ret == AMDSMI_STATUS_INVAL) {
+        // GIM 8.7 fork rejects the null-buffer probe; fetch into the max buffer
+        count = AGA_GIM_MAX_METRICS;
+    } else if (amdsmi_ret != AMDSMI_STATUS_SUCCESS) {
+        AGA_TRACE_ERR("Failed to get gpu_metrics count for GPU {}, err {}",
+                      gpu_handle, amdsmi_ret);
+        return amdsmi_ret_to_sdk_ret(amdsmi_ret);
+    }
+    if (count == 0) {
+        return SDK_RET_OK;
+    }
+    if (count > AGA_GIM_MAX_METRICS) {
+        count = AGA_GIM_MAX_METRICS;
+    }
+    amdsmi_ret = amdsmi_get_gpu_metrics(gpu_handle, &count, metrics_list);
+    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Failed to get gpu_metrics for GPU {}, err {}",
+                      gpu_handle, amdsmi_ret);
+        return amdsmi_ret_to_sdk_ret(amdsmi_ret);
+    }
+    *metrics_count = count;
+    return SDK_RET_OK;
+}
+
 /// \brief    fill VRAM status
 /// \param[in] gpu_handle    GPU handle
 /// \param[out] status    operational status to be filled
@@ -630,6 +668,8 @@ smi_fill_vram_status_ (aga_gpu_handle_t gpu_handle,
 {
     amdsmi_vram_info_t info;
     amdsmi_status_t amdsmi_ret;
+    uint32_t metrics_count = 0;
+    amdsmi_metric_t metrics_list[AGA_GIM_MAX_METRICS];
     aga_gpu_vram_status_t *vram_status = &status->vram_status;
 
     amdsmi_ret = amdsmi_get_gpu_vram_info(gpu_handle, &info);
@@ -643,6 +683,17 @@ smi_fill_vram_status_ (aga_gpu_handle_t gpu_handle,
         smi_vram_vendor_to_string(info.vram_vendor, status->memory_vendor,
                                   AGA_MAX_STR_LEN);
         vram_status->size = info.vram_size;
+    }
+    // max memory bandwidth (row 7) only comes via the gpu_metrics stream
+    vram_status->max_bandwidth = AMDSMI_UINT64_INVALID_VAL;
+    if (smi_get_gpu_metrics_stream(gpu_handle, metrics_list,
+                                   &metrics_count) == SDK_RET_OK) {
+        for (uint32_t i = 0; i < metrics_count; i++) {
+            if (metrics_list[i].name == AMDSMI_METRIC_NAME_MAX_DRAM_BANDWIDTH) {
+                vram_status->max_bandwidth = metrics_list[i].val;
+                break;
+            }
+        }
     }
     return SDK_RET_OK;
 }
@@ -869,7 +920,18 @@ sdk_ret_t
 smi_gpu_get_bad_page_count (void *gpu_obj,
                             uint32_t *num_bad_pages)
 {
-    return SDK_RET_INVALID_OP;
+    amdsmi_status_t amdsmi_ret;
+    gpu_entry *gpu = (gpu_entry *)gpu_obj;
+
+    // GIM 8.7 reports retired pages via the eeprom table; query count first
+    amdsmi_ret = amdsmi_get_gpu_bad_page_info(gpu->handle(),
+                                              num_bad_pages, NULL);
+    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Failed to get bad page information for GPU {}, err {}",
+                      gpu->handle(), amdsmi_ret);
+        return amdsmi_ret_to_sdk_ret(amdsmi_ret);
+    }
+    return SDK_RET_OK;
 }
 
 /// \brief function to get GPU bad page records
@@ -882,7 +944,137 @@ smi_gpu_get_bad_page_records (void *gpu_obj,
                               uint32_t num_bad_pages,
                               aga_gpu_bad_page_record_t *records)
 {
-    return SDK_RET_INVALID_OP;
+    amdsmi_status_t amdsmi_ret;
+    gpu_entry *gpu = (gpu_entry *)gpu_obj;
+    amdsmi_eeprom_table_record_t *bad_pages;
+
+    bad_pages =
+        (amdsmi_eeprom_table_record_t *)malloc(
+            num_bad_pages * sizeof(amdsmi_eeprom_table_record_t));
+    if (!bad_pages) {
+        AGA_TRACE_ERR("Failed to allocate memory for bad page information "
+                      "for GPU {}", gpu->key().str());
+        return SDK_RET_OOM;
+    }
+    amdsmi_ret = amdsmi_get_gpu_bad_page_info(gpu->handle(), &num_bad_pages,
+                                              bad_pages);
+    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Failed to get bad page information for GPU {}, err {}",
+                      gpu->handle(), amdsmi_ret);
+        free(bad_pages);
+        return amdsmi_ret_to_sdk_ret(amdsmi_ret);
+    }
+    for (uint32_t i = 0; i < num_bad_pages; i++) {
+        records[i].key = gpu->key();
+        // GIM eeprom record exposes only the retired page address; page
+        // size/status are not carried on the 8.7 host path
+        records[i].page_address = bad_pages[i].retired_page;
+        records[i].page_size = 0;
+        records[i].page_status = AGA_GPU_PAGE_STATUS_RESERVED;
+    }
+    free(bad_pages);
+    return SDK_RET_OK;
+}
+
+/// \brief    walk amdsmi_get_gpu_metrics() stream to populate VCN/JPEG/GFX
+///           per-engine activity plus throttle/violation residency telemetry
+/// \param[in] gpu_handle    GPU handle
+/// \param[out] stats        stats struct whose usage/violation fields are filled
+/// \return SDK_RET_OK or error code
+static sdk_ret_t
+smi_walk_gpu_metrics (aga_gpu_handle_t gpu_handle, aga_gpu_stats_t *stats)
+{
+    bool is_inst;
+    uint32_t idx;
+    sdk_ret_t ret;
+    uint32_t metrics_count = 0;
+    amdsmi_metric_t metrics_list[AGA_GIM_MAX_METRICS];
+    aga_gpu_violation_stats_t *vs = &stats->violation_stats;
+
+    // absent metrics stay at the 0xff sentinel so DME suppresses them
+    memset(vs, 0xff, sizeof(*vs));
+
+    ret = smi_get_gpu_metrics_stream(gpu_handle, metrics_list, &metrics_count);
+    if (ret != SDK_RET_OK) {
+        return ret;
+    }
+
+    for (uint32_t i = 0; i < metrics_count; i++) {
+        auto &m = metrics_list[i];
+        is_inst = (m.flags & AMDSMI_METRIC_TYPE_INST);
+        idx = m.res_instance;
+
+        AGA_TRACE_VERBOSE("GPU {} metric name {} value {} flags {} instance {}",
+                          gpu_handle, (int)m.name, (unsigned long)m.val,
+                          m.flags, idx);
+
+        switch (m.name) {
+        case AMDSMI_METRIC_NAME_USAGE_VCN:
+            if (idx < AGA_GPU_MAX_VCN) {
+                if (is_inst)
+                    stats->usage.vcn_busy[idx] = (uint16_t)m.val;
+                else
+                    stats->usage.vcn_activity[idx] = (uint16_t)m.val;
+            }
+            break;
+        case AMDSMI_METRIC_NAME_USAGE_JPEG:
+            if (is_inst) {
+                if (idx < AGA_GPU_MAX_JPEG_ENG)
+                    stats->usage.jpeg_busy[idx] = (uint16_t)m.val;
+            } else {
+                if (idx < AGA_GPU_MAX_JPEG)
+                    stats->usage.jpeg_activity[idx] = (uint16_t)m.val;
+            }
+            break;
+        case AMDSMI_METRIC_NAME_USAGE_GFX:
+            if (is_inst && idx < AGA_GPU_MAX_XCC)
+                stats->usage.gfx_busy_inst[idx] = (uint32_t)m.val;
+            break;
+        case AMDSMI_METRIC_NAME_USAGE_MM:
+            break;
+        // throttle/violation residency (rows 10-20). the GIM stream exposes
+        // accumulated counters only; per_* percentages are not available and
+        // are left at the sentinel (never derived) so DME suppresses them.
+        case AMDSMI_METRIC_NAME_METRIC_ACC_COUNTER:
+            vs->current_accumulated_counter = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_THROTTLE_SOCKET_ACTIVE:
+            vs->socket_thermal_residency_accumulated = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_THROTTLE_VR_ACTIVE:
+            vs->vr_thermal_residency_accumulated = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_THROTTLE_MEM_ACTIVE:
+            vs->hbm_thermal_residency_accumulated = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_THROTTLE_PROCHOT_ACTIVE:
+            vs->processor_hot_residency_accumulated = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_THROTTLE_PPT_ACTIVE:
+            vs->ppt_residency_accumulated = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_GFX_CLK_BELOW_HOST_LIMIT_PPT:
+            if (idx < AGA_GPU_MAX_XCC)
+                vs->gfx_clk_below_host_limit_power_accumulated[idx] = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_GFX_CLK_BELOW_HOST_LIMIT_THM:
+            if (idx < AGA_GPU_MAX_XCC)
+                vs->gfx_clk_below_host_limit_thermal_accumulated[idx] = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_GFX_CLK_BELOW_HOST_LIMIT_TOTAL:
+            if (idx < AGA_GPU_MAX_XCC)
+                vs->gfx_clk_below_host_limit_total_accumulated[idx] = m.val;
+            break;
+        case AMDSMI_METRIC_NAME_GFX_CLK_LOW_UTILIZATION:
+            if (idx < AGA_GPU_MAX_XCC)
+                vs->gfx_low_utilization_accumulated[idx] = m.val;
+            break;
+        default:
+            break;
+        }
+    }
+
+    return SDK_RET_OK;
 }
 
 sdk_ret_t
@@ -896,8 +1088,10 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
     sdk_ret_t ret;
     int64_t temperature;
     amdsmi_status_t amdsmi_ret;
+    amdsmi_npm_info_t npm_info = {};
     amdsmi_pcie_info_t pcie_info = {};
     amdsmi_power_info_t power_info = {};
+    amdsmi_node_handle node_handle = {};
     amdsmi_engine_usage_t usage_info = {};
 
     AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
@@ -913,6 +1107,14 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
         stats->voltage.gfx_voltage = power_info.gfx_voltage;
         stats->voltage.memory_voltage = power_info.mem_voltage;
     }
+    // UBB node power cap = node-level power limit (npm); 0 where unsupported
+    amdsmi_ret = amdsmi_get_node_handle(gpu_handle, &node_handle);
+    if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
+        amdsmi_ret = amdsmi_get_npm_info(node_handle, &npm_info);
+        if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
+            stats->ubb_power_cap = npm_info.limit;
+        }
+    }
     // fill the GPU usage
     amdsmi_ret = amdsmi_get_gpu_activity(gpu_handle, &usage_info);
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
@@ -923,6 +1125,8 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
         stats->usage.mm_activity = usage_info.mm_activity;
         stats->usage.gfx_activity = usage_info.gfx_activity;
     }
+    // fill VCN/JPEG/instantaneous activity from gpu_metrics stream
+    smi_walk_gpu_metrics(gpu_handle, stats);
     // fill the PCIe stats
     amdsmi_ret = amdsmi_get_pcie_info(gpu_handle, &pcie_info);
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {

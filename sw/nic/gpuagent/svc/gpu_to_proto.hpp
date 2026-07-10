@@ -691,6 +691,8 @@ aga_gpu_api_stats_to_proto (GPUStats *proto_stats,
                                       &stats->vram_usage);
     proto_stats->set_energyconsumed(stats->energy_consumed);
     proto_stats->set_powerusage(stats->power_usage);
+    proto_stats->set_ubbpower(stats->ubb_power);
+    proto_stats->set_ubbpowercap(stats->ubb_power_cap);
     proto_stats->set_totalcorrectableerrors(stats->total_correctable_errors);
     proto_stats->set_totaluncorrectableerrors(
                      stats->total_uncorrectable_errors);
