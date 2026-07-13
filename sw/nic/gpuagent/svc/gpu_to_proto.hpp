@@ -783,6 +783,9 @@ aga_gpu_api_stats_to_proto (GPUStats *proto_stats,
     proto_stats->set_fanspeed(stats->fan_speed);
     proto_stats->set_gfxactivityaccumulated(stats->gfx_activity_accumulated);
     proto_stats->set_memoryactivityaccumulated(stats->mem_activity_accumulated);
+    proto_stats->set_hsmpaccumulationcounter(stats->hsmp_accumulation_counter);
+    proto_stats->set_socketgfxbusyaccumulated(stats->socket_gfx_busy_accumulated);
+    proto_stats->set_drambandwidthaccumulated(stats->dram_bandwidth_accumulated);
     for (uint32_t i = 0; i < AGA_GPU_MAX_XGMI_LINKS; i++) {
         aga_gpu_xgmi_link_stats_to_proto(proto_stats->add_xgmilinkstats(),
                                          &stats->xgmi_link_stats[i]);

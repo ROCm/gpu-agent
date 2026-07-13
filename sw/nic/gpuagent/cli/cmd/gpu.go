@@ -1733,6 +1733,24 @@ func printGPUStats(gpu *aga.GPU, statsOnly bool) {
 			"Memory activity accumulated",
 			stats.GetMemoryActivityAccumulated())
 	}
+	if (stats.GetHSMPAccumulationCounter() != 0) &&
+		(stats.GetHSMPAccumulationCounter() != UINT64_MAX_VAL) {
+		fmt.Printf(indent+"%-38s : %d\n",
+			"HSMP accumulation counter",
+			stats.GetHSMPAccumulationCounter())
+	}
+	if (stats.GetSocketGFXBusyAccumulated() != 0) &&
+		(stats.GetSocketGFXBusyAccumulated() != UINT64_MAX_VAL) {
+		fmt.Printf(indent+"%-38s : %d\n",
+			"Socket GFX busy accumulated",
+			stats.GetSocketGFXBusyAccumulated())
+	}
+	if (stats.GetDRAMBandwidthAccumulated() != 0) &&
+		(stats.GetDRAMBandwidthAccumulated() != UINT64_MAX_VAL) {
+		fmt.Printf(indent+"%-38s : %d\n",
+			"DRAM bandwidth accumulated",
+			stats.GetDRAMBandwidthAccumulated())
+	}
 	for i, linkStats := range stats.GetXGMILinkStats() {
 		link := "Link " + fmt.Sprintf("%v", i+1)
 		if (linkStats.GetDataRead() != 0) &&

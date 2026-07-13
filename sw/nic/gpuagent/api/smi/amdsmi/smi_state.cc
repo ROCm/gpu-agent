@@ -1555,11 +1555,17 @@ smi_state::init(aga_api_init_params_t *init_params) {
     amdsmi_status_t status;
     aga_gpu_profile_t gpu[AGA_MAX_GPU];
 
-    // initialize smi library
-    status = amdsmi_init(AMDSMI_INIT_AMD_GPUS);
+    // APUS enables HSMP socket accumulators; fall back to GPUS on non-APU
+    status = amdsmi_init(AMDSMI_INIT_AMD_APUS);
     if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
-        AGA_TRACE_ERR("Failed to initialize amd smi library, err {}", status);
-        return amdsmi_ret_to_sdk_ret(status);
+        AGA_TRACE_WARN("APU smi init failed (err {}), falling back to GPU init",
+                       status);
+        status = amdsmi_init(AMDSMI_INIT_AMD_GPUS);
+        if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to initialize amd smi library, err {}",
+                          status);
+            return amdsmi_ret_to_sdk_ret(status);
+        }
     }
     // discover gpus
     ret = aga::smi_discover_gpus(&num_gpu_, gpu);
