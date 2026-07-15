@@ -1106,13 +1106,15 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
         stats->voltage.voltage = power_info.soc_voltage;
         stats->voltage.gfx_voltage = power_info.gfx_voltage;
         stats->voltage.memory_voltage = power_info.mem_voltage;
+        // UBB node power (MI350X+, GIM 9.1.0.K+); 0 where unsupported
+        stats->ubb_power = power_info.ubb_power;
     }
-    // UBB node power cap = node-level power limit (npm); 0 where unsupported
+    // UBB node power cap = node-level power threshold (npm); 0 where unsupported
     amdsmi_ret = amdsmi_get_node_handle(gpu_handle, &node_handle);
     if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
         amdsmi_ret = amdsmi_get_npm_info(node_handle, &npm_info);
         if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
-            stats->ubb_power_cap = npm_info.limit;
+            stats->ubb_power_cap = npm_info.ubb_power_threshold;
         }
     }
     // fill the GPU usage
