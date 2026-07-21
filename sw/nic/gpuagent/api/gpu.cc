@@ -145,7 +145,7 @@ gpu_entry::update_handler(api_params_base *api_params) {
         return ret;
     }
     // update the stashed spec if the gpu update goes through
-    memcpy(spec, &spec_, sizeof(aga_gpu_spec_t));
+    memcpy(&spec_, spec, sizeof(aga_gpu_spec_t));
     return ret;
 }
 
@@ -180,13 +180,13 @@ gpu_entry::fill_status_(aga_gpu_spec_t *spec, aga_gpu_status_t *status) {
 }
 
 void
-gpu_entry::init_immutable_attrs(void) {
+gpu_entry::init_attrs(void) {
     // stash information already available
     status_.index = id_;
     status_.handle = handle_;
     status_.partition_id = partition_id_;
-    // fill other immutable attributes that we can get from API calls
-    smi_gpu_init_immutable_attrs(handle_, &key_, &spec_, &status_);
+    // fill initial attributes that we can get from API calls
+    smi_gpu_init_attrs(handle_, &key_, &spec_, &status_);
 }
 
 void

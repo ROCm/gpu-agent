@@ -1088,10 +1088,8 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
     sdk_ret_t ret;
     int64_t temperature;
     amdsmi_status_t amdsmi_ret;
-    amdsmi_npm_info_t npm_info = {};
     amdsmi_pcie_info_t pcie_info = {};
     amdsmi_power_info_t power_info = {};
-    amdsmi_node_handle node_handle = {};
     amdsmi_engine_usage_t usage_info = {};
 
     AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
@@ -1106,16 +1104,6 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
         stats->voltage.voltage = power_info.soc_voltage;
         stats->voltage.gfx_voltage = power_info.gfx_voltage;
         stats->voltage.memory_voltage = power_info.mem_voltage;
-        // UBB node power (MI350X+, GIM 9.1.0.K+); 0 where unsupported
-        stats->ubb_power = power_info.ubb_power;
-    }
-    // UBB node power cap = node-level power threshold (npm); 0 where unsupported
-    amdsmi_ret = amdsmi_get_node_handle(gpu_handle, &node_handle);
-    if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
-        amdsmi_ret = amdsmi_get_npm_info(node_handle, &npm_info);
-        if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
-            stats->ubb_power_cap = npm_info.ubb_power_threshold;
-        }
     }
     // fill the GPU usage
     amdsmi_ret = amdsmi_get_gpu_activity(gpu_handle, &usage_info);
@@ -1671,6 +1659,17 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle_in,
     }
     // fill VRAM status
     smi_fill_vram_status_(gpu_handle, status);
+    return SDK_RET_OK;
+}
+
+sdk_ret_t
+smi_gpu_init_attrs (aga_gpu_handle_t gpu_handle, const aga_obj_key_t *gpu_key,
+                    aga_gpu_spec_t *spec, aga_gpu_status_t *status)
+{
+    // initialize the immutable attributes
+    smi_gpu_init_immutable_attrs(gpu_handle, gpu_key, spec, status);
+    // read the attributes that are also read on every get
+    smi_gpu_fill_spec(gpu_handle, gpu_key, spec);
     return SDK_RET_OK;
 }
 

@@ -171,6 +171,18 @@ sdk_ret_t smi_gpu_init_immutable_attrs(aga_gpu_handle_t gpu_handle,
                                        aga_gpu_spec_t *spec,
                                        aga_gpu_status_t *status);
 
+/// \brief    initialize the immutable attributes, the attributes also read on
+///           every get, and the config attributes
+/// \param[in]  gpu_handle    GPU handle
+/// \param[in]  gpu_key       stable GPU UUID
+/// \param[out] spec          GPU spec
+/// \param[out] status        GPU status
+/// \return     SDK_RET_OK or error code in case of failure
+sdk_ret_t smi_gpu_init_attrs(aga_gpu_handle_t gpu_handle,
+                             const aga_obj_key_t *gpu_key,
+                             aga_gpu_spec_t *spec,
+                             aga_gpu_status_t *status);
+
 /// \brief function to get GPU CPER entries
 /// \param[in]  gpu_handle    handle of GPU device (uuid refreshes inside)
 /// \param[in]  uuid          stable GPU UUID

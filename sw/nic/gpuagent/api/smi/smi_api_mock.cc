@@ -109,6 +109,15 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle,
 }
 
 sdk_ret_t
+smi_gpu_init_attrs (aga_gpu_handle_t gpu_handle, const aga_obj_key_t *gpu_key,
+                    aga_gpu_spec_t *spec, aga_gpu_status_t *status)
+{
+    smi_gpu_init_immutable_attrs(gpu_handle, gpu_key, spec, status);
+    smi_gpu_fill_spec(gpu_handle, gpu_key, spec);
+    return SDK_RET_OK;
+}
+
+sdk_ret_t
 smi_gpu_fill_spec (aga_gpu_handle_t gpu_handle,
                    const aga_obj_key_t *gpu_key,
                    aga_gpu_spec_t *spec)

@@ -172,8 +172,8 @@ create_gpus (void)
         }
         // set partition id
         entry->set_partition_id(gpu[i].partition_id);
-        // initialize immutable attributes in GPU spec and status
-        entry->init_immutable_attrs();
+        // initialize attributes in GPU spec and status at create time
+        entry->init_attrs();
         // insert in handle db
         gpu_db()->insert_in_handle_db(entry);
         // if GPU is a child GPU, add to the parent GPU

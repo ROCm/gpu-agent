@@ -166,8 +166,8 @@ public:
         num_gpu_watch_--;
     }
 
-    /// \brief  initialize immutable attributes in GPU spec and status
-    void init_immutable_attrs(void);
+    /// \brief  initialize attributes in GPU spec and status
+    void init_attrs(void);
 
     /// \brief  return parent GPU uuid
     /// \return parent gpu uuid
