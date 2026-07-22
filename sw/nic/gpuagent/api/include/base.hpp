@@ -122,7 +122,8 @@ struct aga_obj_key_s {
         buf[23] = '-';
         for (uint32_t i = 0; i < 6; i++) {
             uint32_t off = 24 + (i << 1);
-            snprintf(&buf[off], sizeof(buf) - off,"%02x", id[10 + i] & 0xFF);
+            snprintf(&buf[off], (OBJ_MAX_KEY_STR_LEN + 1) - off, "%02x",
+                     id[10 + i] & 0xFF);
         }
         buf[OBJ_MAX_KEY_STR_LEN] = '\0';
         return buf;
