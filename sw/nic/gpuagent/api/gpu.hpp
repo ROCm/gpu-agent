@@ -99,9 +99,11 @@ public:
     virtual sdk_ret_t delete_handler(api_params_base *api_params) override;
 
     /// \brief          read config
-    /// \param[out]     info pointer to the info object
+    /// \param[out]     info   pointer to the info object
+    /// \param[in]      filter attributes to skip (NULL fetches all attributes)
     /// \return         SDK_RET_OK on success, failure status code on error
-    sdk_ret_t read(aga_gpu_info_t *info);
+    sdk_ret_t read(aga_gpu_info_t *info,
+                   const aga_gpu_get_filter_t *filter = NULL);
 
     /// \brief return stringified key of the object (for debugging)
     virtual string key2str(void) const override {
@@ -296,11 +298,15 @@ private:
     /// \brief      fill the gpu operational status
     /// \param[in]  spec config specification
     /// \param[out] status operational status
-    void fill_status_(aga_gpu_spec_t *spec, aga_gpu_status_t *status);
+    /// \param[in]  filter attributes to skip (NULL fetches all attributes)
+    void fill_status_(aga_gpu_spec_t *spec, aga_gpu_status_t *status,
+                      const aga_gpu_get_filter_t *filter);
 
     /// \brief      fill the gpu statistics
     /// \param[out] stats statistics
-    void fill_stats_(aga_gpu_stats_t *stats);
+    /// \param[in]  filter attributes to skip (NULL fetches all attributes)
+    void fill_stats_(aga_gpu_stats_t *stats,
+                     const aga_gpu_get_filter_t *filter);
 
 private:
     /// uuid of the object

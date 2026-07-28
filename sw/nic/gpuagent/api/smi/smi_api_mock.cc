@@ -215,7 +215,8 @@ sdk_ret_t
 smi_gpu_fill_status (aga_gpu_handle_t gpu_handle,
                      const aga_obj_key_t *gpu_key,
                      uint32_t gpu_id,
-                     aga_gpu_spec_t *spec, aga_gpu_status_t *status)
+                     aga_gpu_spec_t *spec, aga_gpu_status_t *status,
+                     const aga_gpu_get_filter_t *filter)
 {
     status->index = gpu_id;
     status->handle = gpu_handle;
@@ -246,16 +247,20 @@ smi_gpu_fill_status (aga_gpu_handle_t gpu_handle,
     fill_gpu_fw_version_(&status->fw_version[9], "VCN", "0x0110101b");
     // fill the memory vendor
     strncpy(status->memory_vendor, "hynix", AGA_MAX_STR_LEN);
-    smi_fill_clock_status_(gpu_handle, status);
+    if (!AGA_GPU_SKIP(filter, skip_clock_status)) {
+        smi_fill_clock_status_(gpu_handle, status);
+    }
     // fill the PCIe bus id
     strncpy(status->pcie_status.pcie_bus_id, g_gpu_map[gpu_handle].bdf.c_str(),
             AGA_MAX_STR_LEN);
-    status->pcie_status.slot_type = AGA_PCIE_SLOT_TYPE_OAM;
-    status->pcie_status.width = 16;
-    status->pcie_status.max_width = 16;
-    status->pcie_status.speed = 16;
-    status->pcie_status.max_speed = 32;
-    status->pcie_status.bandwidth = 315;
+    if (!AGA_GPU_SKIP(filter, skip_pcie_status)) {
+        status->pcie_status.slot_type = AGA_PCIE_SLOT_TYPE_OAM;
+        status->pcie_status.width = 16;
+        status->pcie_status.max_width = 16;
+        status->pcie_status.speed = 16;
+        status->pcie_status.max_speed = 32;
+        status->pcie_status.bandwidth = 315;
+    }
     // fill VRAM status
     status->vram_status.type = AGA_VRAM_TYPE_HBM;
     strcpy(status->vram_status.vendor, "hynix");
@@ -263,10 +268,13 @@ smi_gpu_fill_status (aga_gpu_handle_t gpu_handle,
     // fill VRAM max bandwidth mock value
     status->vram_status.max_bandwidth = 3276800;
     // fill the xgmi error count
-    status->xgmi_status.error_status = AGA_GPU_XGMI_STATUS_NO_ERROR;
-    // fill total memory
+    if (!AGA_GPU_SKIP(filter, skip_xgmi_status)) {
+        status->xgmi_status.error_status = AGA_GPU_XGMI_STATUS_NO_ERROR;
+    }
     // fill kfd pid info
-    smi_fill_gpu_kfd_pid_status_(gpu_handle, status);
+    if (!AGA_GPU_SKIP(filter, skip_process_status)) {
+        smi_fill_gpu_kfd_pid_status_(gpu_handle, status);
+    }
     status->partition_id = 0;
     smi_fill_gpu_enumeration_id_status_(gpu_handle, status);
     return SDK_RET_OK;
@@ -278,7 +286,8 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
                     bool is_partitioned,
                     uint32_t partition_id,
                     aga_gpu_handle_t first_partition_handle,
-                    aga_gpu_stats_t *stats)
+                    aga_gpu_stats_t *stats,
+                    const aga_gpu_get_filter_t *filter)
 {
     std::random_device rd; // obtain a random number from hardware
     std::mt19937 gen(rd()); // seed the generator
@@ -289,66 +298,76 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
     // fill the current package power
     stats->package_power = 90 + distr(gen) - distr(gen);
     // fill the GPU usage
-    stats->usage.gfx_activity = distr(gen) % 100;
+    if (!AGA_GPU_SKIP(filter, skip_activity_stats)) {
+        stats->usage.gfx_activity = distr(gen) % 100;
+    }
     // fill VRAM usage
-    stats->vram_usage.total_vram = 196592;
-    stats->vram_usage.used_vram = 1273;
-    stats->vram_usage.free_vram =
-        stats->vram_usage.total_vram - stats->vram_usage.used_vram;
-    stats->vram_usage.total_visible_vram = 196592;
-    stats->vram_usage.used_visible_vram = 1273;
-    stats->vram_usage.free_visible_vram =
-        stats->vram_usage.total_visible_vram -
-            stats->vram_usage.used_visible_vram;
-    stats->vram_usage.total_gtt = 128716;
-    stats->vram_usage.used_gtt = 20;
-    stats->vram_usage.free_gtt =
-        stats->vram_usage.total_gtt - stats->vram_usage.used_gtt;
+    if (!AGA_GPU_SKIP(filter, skip_vram_usage_stats)) {
+        stats->vram_usage.total_vram = 196592;
+        stats->vram_usage.used_vram = 1273;
+        stats->vram_usage.free_vram =
+            stats->vram_usage.total_vram - stats->vram_usage.used_vram;
+        stats->vram_usage.total_visible_vram = 196592;
+        stats->vram_usage.used_visible_vram = 1273;
+        stats->vram_usage.free_visible_vram =
+            stats->vram_usage.total_visible_vram -
+                stats->vram_usage.used_visible_vram;
+        stats->vram_usage.total_gtt = 128716;
+        stats->vram_usage.used_gtt = 20;
+        stats->vram_usage.free_gtt =
+            stats->vram_usage.total_gtt - stats->vram_usage.used_gtt;
+    }
     // fill the PCIe stats
-    ++stats->pcie_stats.replay_count;
-    ++stats->pcie_stats.tx_bytes;
-    ++stats->pcie_stats.recovery_count;
-    ++stats->pcie_stats.replay_rollover_count;
-    ++stats->pcie_stats.nack_sent_count;
-    ++stats->pcie_stats.nack_received_count;
-    ++stats->pcie_stats.rx_bytes;
-    ++stats->pcie_stats.tx_bytes;
-    ++stats->pcie_stats.bidir_bandwidth;
+    if (!AGA_GPU_SKIP(filter, skip_pcie_stats)) {
+        ++stats->pcie_stats.replay_count;
+        ++stats->pcie_stats.tx_bytes;
+        ++stats->pcie_stats.recovery_count;
+        ++stats->pcie_stats.replay_rollover_count;
+        ++stats->pcie_stats.nack_sent_count;
+        ++stats->pcie_stats.nack_received_count;
+        ++stats->pcie_stats.rx_bytes;
+        ++stats->pcie_stats.tx_bytes;
+        ++stats->pcie_stats.bidir_bandwidth;
+    }
     // fill the energy consumed
     stats->energy_consumed = 25293978861568 + distr(gen) - distr(gen);
-    for (uint16_t i = 0; i < AMDSMI_MAX_NUM_XCC; i++) {
-        stats->usage.gfx_busy_inst[i] = distr(gen) % 100 ;
+    if (!AGA_GPU_SKIP(filter, skip_activity_stats)) {
+        for (uint16_t i = 0; i < AMDSMI_MAX_NUM_XCC; i++) {
+            stats->usage.gfx_busy_inst[i] = distr(gen) % 100 ;
+        }
     }
     // fill violation stats
-    stats->violation_stats.current_accumulated_counter = 123456 + distr(gen) - distr(gen);
-    stats->violation_stats.processor_hot_residency_accumulated = 23456 + distr(gen) - distr(gen);
-    stats->violation_stats.ppt_residency_accumulated = 34567 + distr(gen) - distr(gen);
-    stats->violation_stats.socket_thermal_residency_accumulated = 45678 + distr(gen) - distr(gen);
-    stats->violation_stats.vr_thermal_residency_accumulated = 56789 + distr(gen) - distr(gen);
-    stats->violation_stats.hbm_thermal_residency_accumulated = 67890 + distr(gen) - distr(gen);
-    stats->violation_stats.processor_hot_residency_percentage = distr(gen) % 100;
-    stats->violation_stats.ppt_residency_percentage = distr(gen) % 100;
-    stats->violation_stats.socket_thermal_residency_percentage = distr(gen) % 100;
-    stats->violation_stats.vr_thermal_residency_percentage = distr(gen) % 100;
-    stats->violation_stats.hbm_thermal_residency_percentage = distr(gen) % 100;
+    if (!AGA_GPU_SKIP(filter, skip_violation_stats)) {
+        stats->violation_stats.current_accumulated_counter = 123456 + distr(gen) - distr(gen);
+        stats->violation_stats.processor_hot_residency_accumulated = 23456 + distr(gen) - distr(gen);
+        stats->violation_stats.ppt_residency_accumulated = 34567 + distr(gen) - distr(gen);
+        stats->violation_stats.socket_thermal_residency_accumulated = 45678 + distr(gen) - distr(gen);
+        stats->violation_stats.vr_thermal_residency_accumulated = 56789 + distr(gen) - distr(gen);
+        stats->violation_stats.hbm_thermal_residency_accumulated = 67890 + distr(gen) - distr(gen);
+        stats->violation_stats.processor_hot_residency_percentage = distr(gen) % 100;
+        stats->violation_stats.ppt_residency_percentage = distr(gen) % 100;
+        stats->violation_stats.socket_thermal_residency_percentage = distr(gen) % 100;
+        stats->violation_stats.vr_thermal_residency_percentage = distr(gen) % 100;
+        stats->violation_stats.hbm_thermal_residency_percentage = distr(gen) % 100;
 
-    for (uint16_t i = 0; i < AMDSMI_MAX_NUM_XCC; i++) {
-        stats->violation_stats.gfx_clk_below_host_limit_power_accumulated[i] =
-            1234 + distr(gen) - distr(gen);
-        stats->violation_stats.gfx_clk_below_host_limit_thermal_accumulated[i] =
-            2345 + distr(gen) - distr(gen);
-        stats->violation_stats.gfx_low_utilization_accumulated[i] =
-            3456 + distr(gen) - distr(gen);
-        stats->violation_stats.gfx_clk_below_host_limit_total_accumulated[i] =
-            4567 + distr(gen) - distr(gen);
-        stats->violation_stats.gfx_clk_below_host_limit_power_percentage[i] =
-            distr(gen) % 100;
-        stats->violation_stats.gfx_clk_below_host_limit_thermal_percentage[i] =
-            distr(gen) % 100;
-        stats->violation_stats.gfx_low_utilization_percentage[i] =
-            distr(gen) % 100;
-        stats->violation_stats.gfx_clk_below_host_limit_total_percentage[i] =
-            distr(gen) % 100;
+        for (uint16_t i = 0; i < AMDSMI_MAX_NUM_XCC; i++) {
+            stats->violation_stats.gfx_clk_below_host_limit_power_accumulated[i] =
+                1234 + distr(gen) - distr(gen);
+            stats->violation_stats.gfx_clk_below_host_limit_thermal_accumulated[i] =
+                2345 + distr(gen) - distr(gen);
+            stats->violation_stats.gfx_low_utilization_accumulated[i] =
+                3456 + distr(gen) - distr(gen);
+            stats->violation_stats.gfx_clk_below_host_limit_total_accumulated[i] =
+                4567 + distr(gen) - distr(gen);
+            stats->violation_stats.gfx_clk_below_host_limit_power_percentage[i] =
+                distr(gen) % 100;
+            stats->violation_stats.gfx_clk_below_host_limit_thermal_percentage[i] =
+                distr(gen) % 100;
+            stats->violation_stats.gfx_low_utilization_percentage[i] =
+                distr(gen) % 100;
+            stats->violation_stats.gfx_clk_below_host_limit_total_percentage[i] =
+                distr(gen) % 100;
+        }
     }
     return SDK_RET_OK;
 }

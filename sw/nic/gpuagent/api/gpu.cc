@@ -150,7 +150,8 @@ gpu_entry::update_handler(api_params_base *api_params) {
 }
 
 void
-gpu_entry::fill_stats_(aga_gpu_stats_t *stats) {
+gpu_entry::fill_stats_(aga_gpu_stats_t *stats,
+                       const aga_gpu_get_filter_t *filter) {
     // fill stats only for non-parent GPUs
     if (child_gpus_.size()) {
         return;
@@ -158,11 +159,12 @@ gpu_entry::fill_stats_(aga_gpu_stats_t *stats) {
     // fetch stats from smi apis
     smi_gpu_fill_stats(handle_, &key_, is_partitioned_,
         (partition_id_ == AGA_GPU_INVALID_PARTITION_ID) ? 0 : partition_id_,
-        first_partition_handle_, stats);
+        first_partition_handle_, stats, filter);
 }
 
 void
-gpu_entry::fill_status_(aga_gpu_spec_t *spec, aga_gpu_status_t *status) {
+gpu_entry::fill_status_(aga_gpu_spec_t *spec, aga_gpu_status_t *status,
+                        const aga_gpu_get_filter_t *filter) {
     if (child_gpus_.size()) {
         status->num_gpu_partition = child_gpus_.size();
         // for parent GPUs get uuids of all children
@@ -175,7 +177,7 @@ gpu_entry::fill_status_(aga_gpu_spec_t *spec, aga_gpu_status_t *status) {
         if (parent_gpu_.valid()) {
             status->physical_gpu = parent_gpu_;
         }
-        smi_gpu_fill_status(handle_, &key_, id_, spec, status);
+        smi_gpu_fill_status(handle_, &key_, id_, spec, status, filter);
     }
 }
 
@@ -201,10 +203,10 @@ gpu_entry::fill_spec_(aga_gpu_spec_t *spec) {
 }
 
 sdk_ret_t
-gpu_entry::read(aga_gpu_info_t *info) {
+gpu_entry::read(aga_gpu_info_t *info, const aga_gpu_get_filter_t *filter) {
     fill_spec_(&info->spec);
-    fill_status_(&info->spec, &info->status);
-    fill_stats_(&info->stats);
+    fill_status_(&info->spec, &info->status, filter);
+    fill_stats_(&info->stats, filter);
     return SDK_RET_OK;
 }
 

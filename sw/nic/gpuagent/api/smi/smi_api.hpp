@@ -73,11 +73,13 @@ sdk_ret_t smi_gpu_fill_spec(aga_gpu_handle_t handle,
 /// \param[in] uuid      stable GPU UUID
 /// \param[in] spec      GPU operational spec
 /// \param[out] status    operational status to be filled
+/// \param[in] filter     attributes to skip (NULL fetches all attributes)
 /// \return     SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_gpu_fill_status(aga_gpu_handle_t handle,
                               const aga_obj_key_t *gpu_key,
                               uint32_t id,
-                              aga_gpu_spec_t *spec, aga_gpu_status_t *status);
+                              aga_gpu_spec_t *spec, aga_gpu_status_t *status,
+                              const aga_gpu_get_filter_t *filter);
 
 /// \brief    fill gpu object statistics
 /// \param[in] handle                   GPU handle (uuid refreshes inside)
@@ -88,13 +90,15 @@ sdk_ret_t smi_gpu_fill_status(aga_gpu_handle_t handle,
 /// \param[in] main_partition_handle    in case of GPU partitions, handle of the
 ///                                     first partition, else, GPU handle
 /// \param[out] stats    gpu object stats to be filled
+/// \param[in] filter       attributes to skip (NULL fetches all attributes)
 /// \return     SDK_RET_OK or error code in case of failure
 sdk_ret_t smi_gpu_fill_stats(aga_gpu_handle_t handle,
                              const aga_obj_key_t *gpu_key,
                              bool is_partitioned,
                              uint32_t partition_id,
                              aga_gpu_handle_t first_partition_handle,
-                             aga_gpu_stats_t *stats);
+                             aga_gpu_stats_t *stats,
+                             const aga_gpu_get_filter_t *filter);
 
 /// \brief    read all the events and invokve the callback provided for each
 /// \param[in] cb    callback function pointer
