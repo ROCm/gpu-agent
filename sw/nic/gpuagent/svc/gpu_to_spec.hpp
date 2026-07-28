@@ -66,6 +66,24 @@ aga_gpu_admin_state_to_spec (amdgpu::GPUAdminState admin_state)
     return AGA_GPU_ADMIN_STATE_NONE;
 }
 
+// convert gpu get filter from proto to spec
+static inline void
+aga_gpu_get_filter_to_spec (const amdgpu::GPUGetFilter& proto_filter,
+                            aga_gpu_get_filter_t *filter)
+{
+    filter->skip_clock_status = proto_filter.skipclockstatus();
+    filter->skip_pcie_status = proto_filter.skippciestatus();
+    filter->skip_xgmi_status = proto_filter.skipxgmistatus();
+    filter->skip_process_status = proto_filter.skipprocessstatus();
+    filter->skip_ualink_status = proto_filter.skipualinkstatus();
+    filter->skip_vram_usage_stats = proto_filter.skipvramusagestats();
+    filter->skip_ecc_stats = proto_filter.skipeccstats();
+    filter->skip_violation_stats = proto_filter.skipviolationstats();
+    filter->skip_pcie_stats = proto_filter.skippciestats();
+    filter->skip_xgmi_stats = proto_filter.skipxgmistats();
+    filter->skip_activity_stats = proto_filter.skipactivitystats();
+}
+
 static inline aga_gpu_compute_partition_type_t
 aga_gpu_compute_partition_type_to_spec (amdgpu::GPUComputePartitionType type)
 {

@@ -63,6 +63,17 @@ var (
 	memClkFreqHi        uint32
 	printHdr            bool
 	severity            string
+	skipClockStatus     bool
+	skipPCIeStatus      bool
+	skipXGMIStatus      bool
+	skipProcessStatus   bool
+	skipUALinkStatus    bool
+	skipVRAMUsageStats  bool
+	skipECCStats        bool
+	skipViolationStats  bool
+	skipPCIeStats       bool
+	skipXGMIStats       bool
+	skipActivityStats   bool
 )
 
 const (
@@ -143,6 +154,7 @@ func init() {
 
 	gpuShowCmd.AddCommand(gpuAllShowCmd)
 	gpuAllShowCmd.Flags().StringVarP(&gpuID, "id", "i", "", "Specify GPU id")
+	addGPUSkipFlags(gpuAllShowCmd)
 
 	gpuShowCmd.AddCommand(gpuStatsShowCmd)
 	gpuStatsShowCmd.Flags().StringVarP(&gpuID, "id", "i", "", "Specify GPU id")
@@ -457,6 +469,50 @@ func gpuCPERShowCmdHandler(cmd *cobra.Command, args []string) error {
 	}
 	return nil
 }
+
+// addGPUSkipFlags registers the --skip-* flags on a GPU show command
+func addGPUSkipFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolVar(&skipClockStatus, "skip-clock-status", false,
+		"Skip GPU clock status")
+	cmd.Flags().BoolVar(&skipPCIeStatus, "skip-pcie-status", false,
+		"Skip PCIe status")
+	cmd.Flags().BoolVar(&skipXGMIStatus, "skip-xgmi-status", false,
+		"Skip XGMI error status")
+	cmd.Flags().BoolVar(&skipProcessStatus, "skip-process-status", false,
+		"Skip process list")
+	cmd.Flags().BoolVar(&skipUALinkStatus, "skip-ualink-status", false,
+		"Skip UALink state")
+	cmd.Flags().BoolVar(&skipVRAMUsageStats, "skip-vram-usage-stats", false,
+		"Skip VRAM usage")
+	cmd.Flags().BoolVar(&skipECCStats, "skip-ecc-stats", false,
+		"Skip ECC error counts")
+	cmd.Flags().BoolVar(&skipViolationStats, "skip-violation-stats", false,
+		"Skip violation stats")
+	cmd.Flags().BoolVar(&skipPCIeStats, "skip-pcie-stats", false,
+		"Skip PCIe stats")
+	cmd.Flags().BoolVar(&skipXGMIStats, "skip-xgmi-stats", false,
+		"Skip XGMI counters")
+	cmd.Flags().BoolVar(&skipActivityStats, "skip-activity-stats", false,
+		"Skip GPU activity and usage")
+}
+
+// buildGPUGetFilter builds a GPUGetFilter from the --skip-* flag values
+func buildGPUGetFilter() *aga.GPUGetFilter {
+	return &aga.GPUGetFilter{
+		SkipClockStatus:    skipClockStatus,
+		SkipPCIeStatus:     skipPCIeStatus,
+		SkipXGMIStatus:     skipXGMIStatus,
+		SkipProcessStatus:  skipProcessStatus,
+		SkipUALinkStatus:   skipUALinkStatus,
+		SkipVRAMUsageStats: skipVRAMUsageStats,
+		SkipECCStats:       skipECCStats,
+		SkipViolationStats: skipViolationStats,
+		SkipPCIeStats:      skipPCIeStats,
+		SkipXGMIStats:      skipXGMIStats,
+		SkipActivityStats:  skipActivityStats,
+	}
+}
+
 func gpuShowCmdHandler(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("Invalid argument")
@@ -702,6 +758,7 @@ func gpuAllShowCmdHandler(cmd *cobra.Command, args []string) error {
 			Id: [][]byte{},
 		}
 	}
+	req.Filter = buildGPUGetFilter()
 
 	// connect to GPU agent
 	c, ctxt, cancel, err := utils.CreateNewAGAGRPClient()

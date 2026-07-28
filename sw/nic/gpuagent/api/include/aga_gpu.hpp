@@ -74,6 +74,38 @@ typedef enum aga_gpu_admin_state_e {
     AGA_GPU_ADMIN_STATE_DOWN = 2,
 } aga_gpu_admin_state_t;
 
+/// \brief GPU attributes that can be skipped in a get request;
+///        default (all false) fetches all attributes
+typedef struct aga_gpu_get_filter_s {
+    /// skip clock status
+    bool skip_clock_status;
+    /// skip PCIe status
+    bool skip_pcie_status;
+    /// skip XGMI error status
+    bool skip_xgmi_status;
+    /// skip process list
+    bool skip_process_status;
+    /// skip UALink state
+    bool skip_ualink_status;
+    /// skip VRAM usage
+    bool skip_vram_usage_stats;
+    /// skip ECC error counts
+    bool skip_ecc_stats;
+    /// skip violation stats
+    bool skip_violation_stats;
+    /// skip PCIe stats
+    bool skip_pcie_stats;
+    /// skip XGMI counters
+    bool skip_xgmi_stats;
+    /// skip GPU activity and usage
+    bool skip_activity_stats;
+} aga_gpu_get_filter_t;
+
+/// true if the given attribute should be skipped;
+/// a NULL filter fetches all attributes
+#define AGA_GPU_SKIP(_filter_, _field_) \
+            (((_filter_) != NULL) && ((_filter_)->_field_))
+
 /// \brief GPU clock types
 typedef enum aga_gpu_clock_type_e {
     AGA_GPU_CLOCK_TYPE_NONE   = 0,
@@ -996,18 +1028,22 @@ typedef struct aga_cper_info_s {
 sdk_ret_t aga_gpu_create(_In_ aga_gpu_spec_t *spec);
 
 /// \brief      read gpu
-/// \param[in]  key  key of the gpu object
-/// \param[out] info information
+/// \param[in]  key    key of the gpu object
+/// \param[out] info   information
+/// \param[in]  filter attributes to skip (NULL fetches all attributes)
 /// \return     #SDK_RET_OK on success, failure status code on error
-sdk_ret_t aga_gpu_read(_In_ aga_obj_key_t *key, _Out_ aga_gpu_info_t *info);
+sdk_ret_t aga_gpu_read(_In_ aga_obj_key_t *key, _Out_ aga_gpu_info_t *info,
+                       const aga_gpu_get_filter_t *filter = NULL);
 
 typedef void (*gpu_read_cb_t)(aga_gpu_info_t *info, void *ctxt);
 
 /// \brief    read all gpu information
-/// \param[in]  cb      callback function
-/// \param[in]  ctxt    opaque context passed to cb
+/// \param[in]  cb     callback function
+/// \param[in]  ctxt   opaque context passed to cb
+/// \param[in]  filter attributes to skip (NULL fetches all attributes)
 /// \return #SDK_RET_OK on success, failure status code on error
-sdk_ret_t aga_gpu_read_all(_In_ gpu_read_cb_t gpu_read_cb, _In_ void *ctxt);
+sdk_ret_t aga_gpu_read_all(_In_ gpu_read_cb_t gpu_read_cb, _In_ void *ctxt,
+                           const aga_gpu_get_filter_t *filter = NULL);
 
 /// \brief      function to get compute partition info of a given physical gpu
 ///             which has been partitioned

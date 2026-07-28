@@ -894,7 +894,8 @@ sdk_ret_t
 smi_gpu_fill_status (aga_gpu_handle_t gpu_handle_in,
                      const aga_obj_key_t *gpu_key,
                      uint32_t gpu_id,
-                     aga_gpu_spec_t *spec, aga_gpu_status_t *status)
+                     aga_gpu_spec_t *spec, aga_gpu_status_t *status,
+                     const aga_gpu_get_filter_t *filter)
 {
     AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
@@ -904,9 +905,13 @@ smi_gpu_fill_status (aga_gpu_handle_t gpu_handle_in,
     status->xgmi_status.error_status = AGA_GPU_XGMI_STATUS_NONE;
 
     // fill the clock status without metrics info
-    smi_fill_clock_status_(gpu_handle, status);
+    if (!AGA_GPU_SKIP(filter, skip_clock_status)) {
+        smi_fill_clock_status_(gpu_handle, status);
+    }
     // fill the PCIe status
-    smi_fill_pcie_status_(gpu_handle, status);
+    if (!AGA_GPU_SKIP(filter, skip_pcie_status)) {
+        smi_fill_pcie_status_(gpu_handle, status);
+    }
     // TODO: oper status
     // TODO: RAS status
     return SDK_RET_OK;
@@ -1083,7 +1088,8 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
                     bool is_partitioned,
                     uint32_t partition_id,
                     aga_gpu_handle_t first_partition_handle,
-                    aga_gpu_stats_t *stats)
+                    aga_gpu_stats_t *stats,
+                    const aga_gpu_get_filter_t *filter)
 {
     sdk_ret_t ret;
     int64_t temperature;
@@ -1116,33 +1122,41 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
         stats->voltage.memory_voltage = power_info.mem_voltage;
     }
     // fill the GPU usage
-    amdsmi_ret = amdsmi_get_gpu_activity(gpu_handle, &usage_info);
-    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
-        AGA_TRACE_ERR("Failed to get GPU activity for GPU {}, err {}",
-                      gpu_handle, amdsmi_ret);
-    } else {
-        stats->usage.umc_activity = usage_info.umc_activity;
-        stats->usage.mm_activity = usage_info.mm_activity;
-        stats->usage.gfx_activity = usage_info.gfx_activity;
+    if (!AGA_GPU_SKIP(filter, skip_activity_stats)) {
+        amdsmi_ret = amdsmi_get_gpu_activity(gpu_handle, &usage_info);
+        if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to get GPU activity for GPU {}, err {}",
+                          gpu_handle, amdsmi_ret);
+        } else {
+            stats->usage.umc_activity = usage_info.umc_activity;
+            stats->usage.mm_activity = usage_info.mm_activity;
+            stats->usage.gfx_activity = usage_info.gfx_activity;
+        }
     }
-    // fill VCN/JPEG/instantaneous activity from gpu_metrics stream
-    smi_walk_gpu_metrics(gpu_handle, stats);
+    // fill VCN/JPEG/instantaneous activity and violation residency from the
+    // gpu_metrics stream; walk it if either activity or violation is requested
+    if (!AGA_GPU_SKIP(filter, skip_activity_stats) ||
+        !AGA_GPU_SKIP(filter, skip_violation_stats)) {
+        smi_walk_gpu_metrics(gpu_handle, stats);
+    }
     // fill the PCIe stats
-    amdsmi_ret = amdsmi_get_pcie_info(gpu_handle, &pcie_info);
-    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
-        AGA_TRACE_ERR("Failed to get PCIe info for GPU {}, err {}",
-                      gpu_handle, amdsmi_ret);
-    } else {
-        stats->pcie_stats.replay_count =
-            pcie_info.pcie_metric.pcie_replay_count;
-        stats->pcie_stats.recovery_count =
-            pcie_info.pcie_metric.pcie_l0_to_recovery_count;
-        stats->pcie_stats.replay_rollover_count =
-            pcie_info.pcie_metric.pcie_replay_roll_over_count;
-        stats->pcie_stats.nack_sent_count =
-            pcie_info.pcie_metric.pcie_nak_sent_count;
-        stats->pcie_stats.nack_received_count =
-            pcie_info.pcie_metric.pcie_nak_received_count;
+    if (!AGA_GPU_SKIP(filter, skip_pcie_stats)) {
+        amdsmi_ret = amdsmi_get_pcie_info(gpu_handle, &pcie_info);
+        if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to get PCIe info for GPU {}, err {}",
+                          gpu_handle, amdsmi_ret);
+        } else {
+            stats->pcie_stats.replay_count =
+                pcie_info.pcie_metric.pcie_replay_count;
+            stats->pcie_stats.recovery_count =
+                pcie_info.pcie_metric.pcie_l0_to_recovery_count;
+            stats->pcie_stats.replay_rollover_count =
+                pcie_info.pcie_metric.pcie_replay_roll_over_count;
+            stats->pcie_stats.nack_sent_count =
+                pcie_info.pcie_metric.pcie_nak_sent_count;
+            stats->pcie_stats.nack_received_count =
+                pcie_info.pcie_metric.pcie_nak_received_count;
+        }
     }
     // fill the edge temperature
     amdsmi_ret = amdsmi_get_temp_metric(gpu_handle,
@@ -1215,7 +1229,9 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle_in,
         stats->temperature.hbm_temperature[3] = (float)temperature;
     }
     // fill ECC block stats
-    smi_fill_ecc_stats_(gpu_handle, stats);
+    if (!AGA_GPU_SKIP(filter, skip_ecc_stats)) {
+        smi_fill_ecc_stats_(gpu_handle, stats);
+    }
     return SDK_RET_OK;
 }
 
