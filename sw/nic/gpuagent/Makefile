@@ -179,13 +179,15 @@ mod:
 	@go mod edit -go=1.25.12
 	#CVE-2024-24790 - gpuctl
 	@go mod edit -replace golang.org/x/net@v0.30.0=golang.org/x/net@v0.38.0
-	#CVE-2026-33186
-	@go mod edit -replace google.golang.org/grpc@v1.72.1=google.golang.org/grpc@v1.79.3
-	@go mod edit -replace google.golang.org/grpc@v1.69.0-dev=google.golang.org/grpc@v1.79.3
-	#CVE-2026-25681,CVE-2026-27136,CVE-2026-33814,CVE-2026-39821,CVE-2026-25680,CVE-2026-42502,CVE-2026-42506
-	@go mod edit -replace golang.org/x/net@v0.48.0=golang.org/x/net@v0.55.0
+	#CVE-2026-33186,GHSA-hrxh-6v49-42gf
+	@go mod edit -replace google.golang.org/grpc@v1.72.1=google.golang.org/grpc@v1.82.1
+	@go mod edit -replace google.golang.org/grpc@v1.69.0-dev=google.golang.org/grpc@v1.82.1
+	#CVE-2026-25681,CVE-2026-27136,CVE-2026-33814,CVE-2026-39821,CVE-2026-25680,CVE-2026-42502,CVE-2026-42506,CVE-2026-46600
+	@go mod edit -replace golang.org/x/net@v0.53.0=golang.org/x/net@v0.56.0
 	#CVE-2026-39824
 	@go mod edit -replace golang.org/x/sys@v0.39.0=golang.org/x/sys@v0.44.0
+	#CVE-2026-56852
+	@go mod edit -replace golang.org/x/text@v0.38.0=golang.org/x/text@v0.39.0
 	@go mod vendor
 
 
