@@ -561,6 +561,11 @@ watch_timer_cb_ (event::timer_t *timer)
     aga_task_spec_t task_spec = {};
     static uint16_t timer_ticks = 0;
 
+    // only start updating watch fields once at least one client has subscribed
+    // to a watch group
+    if (!g_smi_state.any_watch_group_subscribed()) {
+        return;
+    }
     // get latest values of all watch fields
     g_smi_state.watcher_update_watch_db(&task_spec.watch_db);
 
