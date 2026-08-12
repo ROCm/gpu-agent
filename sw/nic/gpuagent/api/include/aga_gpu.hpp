@@ -845,6 +845,12 @@ typedef struct aga_gpu_stats_s {
     uint64_t gfx_activity_accumulated;
     /// memory activity accumulated in %
     uint64_t mem_activity_accumulated;
+    /// HSMP accumulation counter, incremented when accumulators update
+    uint64_t hsmp_accumulation_counter;
+    /// accumulated socket XCC busy
+    uint64_t socket_gfx_busy_accumulated;
+    /// accumulated HBM bandwidth for all HBM stacks in the socket
+    uint64_t dram_bandwidth_accumulated;
     /// XGMI link statistics
     aga_gpu_xgmi_link_stats_t xgmi_link_stats[AGA_GPU_MAX_XGMI_LINKS];
     /// GPU violation statistics

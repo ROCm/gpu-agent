@@ -799,6 +799,12 @@ message GPUStats {
   uint64                     UbbPower                    = 89;
   // UBB node power threshold (in Watts), MI350X+
   uint64                     UbbPowerCap                 = 90;
+  // accumulated HBM bandwidth for all HBM stacks in the socket
+  uint64                     DRAMBandwidthAccumulated    = 91;
+  // HSMP accumulation counter, incremented when accumulators update
+  uint64                     HSMPAccumulationCounter     = 92;
+  // accumulated socket XCC busy
+  uint64                     SocketGFXBusyAccumulated    = 93;
 }
 
 // GPU captures config, operational status and stat of GPU object

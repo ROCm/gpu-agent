@@ -52,6 +52,10 @@ namespace aga {
 /// status and statistics
 std::mutex g_gpu_metrics_mutex;
 std::unordered_map<aga_gpu_handle_t, amdsmi_gpu_metrics_t> g_gpu_metrics;
+/// cache the CPU socket processor handle associated with each GPU, used to
+/// read socket level HSMP accumulator metrics
+std::mutex g_gpu_cpu_handle_mutex;
+std::unordered_map<aga_gpu_handle_t, amdsmi_processor_handle> g_gpu_cpu_handle;
 /// counter resolution in uJ; this is a constant value that we get once during
 /// init time and use whenever we want to calculate energy accumalated
 float g_energy_counter_resolution;
@@ -1288,6 +1292,36 @@ smi_fill_vram_usage_ (aga_gpu_handle_t gpu_handle,
     return SDK_RET_OK;
 }
 
+/// fill socket level HSMP accumulator metrics for the CPU socket associated
+/// with this GPU; only available on platforms with HSMP (e.g. APU)
+static void
+smi_gpu_fill_hsmp_stats_ (aga_gpu_handle_t gpu_handle, aga_gpu_stats_t *stats)
+{
+#ifdef ENABLE_ESMI_LIB
+    amdsmi_status_t status;
+    aga_gpu_handle_t cpu_handle = NULL;
+    amdsmi_hsmp_metrics_table_t table = {};
+
+    {
+        std::lock_guard<std::mutex> lock(g_gpu_cpu_handle_mutex);
+        auto it = g_gpu_cpu_handle.find(gpu_handle);
+        if (it != g_gpu_cpu_handle.end()) {
+            cpu_handle = it->second;
+        }
+    }
+    if (cpu_handle == NULL) {
+        return;
+    }
+    status = amdsmi_get_hsmp_metrics_table(cpu_handle, &table);
+    if (status != AMDSMI_STATUS_SUCCESS) {
+        return;
+    }
+    stats->hsmp_accumulation_counter = table.accumulation_counter;
+    stats->socket_gfx_busy_accumulated = table.socket_gfx_busy_acc;
+    stats->dram_bandwidth_accumulated = table.dram_bandwidth_acc;
+#endif
+}
+
 sdk_ret_t
 smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
                     const aga_obj_key_t *gpu_key,
@@ -1320,6 +1354,10 @@ smi_gpu_fill_stats (aga_gpu_handle_t gpu_handle,
             metrics_info = g_gpu_metrics[gpu_handle];
         }
     }
+    // fill socket level HSMP accumulator metrics; this is independent of the
+    // GPU metrics table (it reads the CPU socket HSMP table) so it is filled
+    // here unconditionally, outside the metrics_info structure-size guard below
+    smi_gpu_fill_hsmp_stats_(gpu_handle, stats);
     if (metrics_info.common_header.structure_size != 0) {
         // power and voltage
         stats->avg_package_power = metrics_info.average_socket_power;
@@ -2094,10 +2132,12 @@ smi_discover_gpus (uint32_t *num_gpu, aga_gpu_profile_t *gpu)
     sdk_ret_t ret;
     uint32_t num_procs;
     uint32_t num_sockets;
+    uint32_t num_cpu = 0;
     amdsmi_status_t status;
     processor_type_t proc_type;
     amdsmi_socket_handle socket_handles[AGA_MAX_SOCKET];
     aga_gpu_handle_t proc_handles[AGA_MAX_PROCESSORS_PER_SOCKET];
+    aga_gpu_handle_t cpu_handles[AGA_MAX_SOCKET] = {};
 
     if (!num_gpu) {
         return SDK_RET_ERR;
@@ -2117,6 +2157,21 @@ smi_discover_gpus (uint32_t *num_gpu, aga_gpu_profile_t *gpu)
                       "err {}", status);
         return amdsmi_ret_to_sdk_ret(status);
     }
+    // enumerate CPU socket handles once; on APU platforms (e.g. MI300A) the
+    // socket level HSMP accumulator metrics are read from the CPU socket
+    // handle, which lives in a separate namespace from the GPU socket handles
+    // and is only reachable via amdsmi_get_cpu_handles()
+#ifdef ENABLE_ESMI_LIB
+    if (amdsmi_get_cpu_handles(&num_cpu, NULL) == AMDSMI_STATUS_SUCCESS) {
+        if (num_cpu > AGA_MAX_SOCKET) {
+            num_cpu = AGA_MAX_SOCKET;
+        }
+        if (amdsmi_get_cpu_handles(&num_cpu, &cpu_handles[0]) !=
+                AMDSMI_STATUS_SUCCESS) {
+            num_cpu = 0;
+        }
+    }
+#endif
     for (uint32_t i = 0; i < num_sockets; i++) {
         // for each socket get the number of processors
         status = amdsmi_get_processor_handles(socket_handles[i],
@@ -2152,6 +2207,12 @@ smi_discover_gpus (uint32_t *num_gpu, aga_gpu_profile_t *gpu)
                     AGA_TRACE_ERR("GPU discovery failed when processing GPU {}",
                                   proc_handles[j]);
                     return ret;
+                }
+                // map this GPU to its CPU socket handle (socket index i)
+                // for socket level HSMP accumulator metrics
+                if (i < num_cpu && cpu_handles[i] != NULL) {
+                    std::lock_guard<std::mutex> lock(g_gpu_cpu_handle_mutex);
+                    g_gpu_cpu_handle[proc_handles[j]] = cpu_handles[i];
                 }
                 (*num_gpu)++;
             }

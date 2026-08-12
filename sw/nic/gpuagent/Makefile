@@ -230,11 +230,11 @@ gogo-protos:
 
 $(OBJ_DIR)/%.o: $(TOPDIR)/%.cc
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS) $(DEFS) $(INCS_AMD_SMI) -DAMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
+	$(CC) $(CFLAGS) $(DEFS) $(INCS_AMD_SMI) -DAMD_SMI -DENABLE_ESMI_LIB -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(TOPDIR)/%.c
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
-	$(CC) $(CFLAGS)  $(INCS_AMD_SMI) -DAMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
+	$(CC) $(CFLAGS)  $(INCS_AMD_SMI) -DAMD_SMI -DENABLE_ESMI_LIB -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
 $(OBJ_DIR_GIM)/%.o: $(TOPDIR)/%.cc
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
