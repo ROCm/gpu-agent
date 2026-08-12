@@ -1825,15 +1825,22 @@ smi_gpu_update (aga_gpu_handle_t gpu_handle,
                               spec->clock_freq[i].clock_type, gpu_handle);
                 return SDK_RET_INVALID_ARG;
             }
-            amdsmi_ret = amdsmi_set_gpu_clk_range(gpu_handle,
-                             spec->clock_freq[i].lo, spec->clock_freq[i].hi,
-                             clock_type);
+            amdsmi_ret = amdsmi_set_gpu_clk_limit(gpu_handle, clock_type,
+                             AMDSMI_CLK_LIMIT_MIN, spec->clock_freq[i].lo);
             if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
-                AGA_TRACE_ERR("Failed to set clock {} frequency range, GPU {}, "
-                              "range {}-{}, err {}",
+                AGA_TRACE_ERR("Failed to set clock {} min frequency, GPU {}, "
+                              "min {}, err {}",
                               spec->clock_freq[i].clock_type, gpu_handle,
-                              spec->clock_freq[i].lo, spec->clock_freq[i].hi,
-                              amdsmi_ret);
+                              spec->clock_freq[i].lo, amdsmi_ret);
+                return (amdsmi_ret_to_sdk_ret(amdsmi_ret));
+            }
+            amdsmi_ret = amdsmi_set_gpu_clk_limit(gpu_handle, clock_type,
+                             AMDSMI_CLK_LIMIT_MAX, spec->clock_freq[i].hi);
+            if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+                AGA_TRACE_ERR("Failed to set clock {} max frequency, GPU {}, "
+                              "max {}, err {}",
+                              spec->clock_freq[i].clock_type, gpu_handle,
+                              spec->clock_freq[i].hi, amdsmi_ret);
                 return (amdsmi_ret_to_sdk_ret(amdsmi_ret));
             }
         }
