@@ -1,6 +1,6 @@
 module github.com/ROCm/gpu-agent/sw/nic/gpuagent
 
-go 1.25.12
+go 1.25.13
 
 require (
 	github.com/gogo/protobuf v1.3.2
