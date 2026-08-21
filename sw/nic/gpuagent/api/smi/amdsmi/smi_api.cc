@@ -23,6 +23,7 @@ limitations under the License.
 #include <sstream>
 #include <iomanip>
 #include <mutex>
+#include <unordered_set>
 extern "C" {
 #include "nic/third-party/rocm/amd_smi_lib/include/amd_smi/amdsmi.h"
 }
@@ -52,6 +53,10 @@ namespace aga {
 /// status and statistics
 std::mutex g_gpu_metrics_mutex;
 std::unordered_map<aga_gpu_handle_t, amdsmi_gpu_metrics_t> g_gpu_metrics;
+/// RDNA = gfx target version top nibble 1 (gfx10/11/12); CDNA (gfx9) top nibble 0
+#define AMDSMI_ASIC_IS_RDNA(gfx_ver)    (((gfx_ver) >> 12) == 1)
+/// RDNA GPU handles, recorded at init; read-only during serving so no lock needed
+std::unordered_set<aga_gpu_handle_t> g_rdna_gpus;
 /// counter resolution in uJ; this is a constant value that we get once during
 /// init time and use whenever we want to calculate energy accumalated
 float g_energy_counter_resolution;
@@ -75,7 +80,15 @@ smi_fill_gpu_clock_frequency_spec_ (aga_gpu_handle_t gpu_handle,
     amdsmi_status_t amdsmi_ret;
     amdsmi_frequencies_t freq = {};
     amdsmi_clk_info_t clock_info = {};
+    amdsmi_asic_info_t asic_info = {};
     aga_gpu_clock_freq_range_t *clock_spec;
+
+    // record RDNA GPUs once at init; get path re-reads their mutable GFX ceiling
+    amdsmi_ret = amdsmi_get_gpu_asic_info(gpu_handle, &asic_info);
+    if (likely(amdsmi_ret == AMDSMI_STATUS_SUCCESS) &&
+        AMDSMI_ASIC_IS_RDNA(asic_info.target_graphics_version)) {
+        g_rdna_gpus.insert(gpu_handle);
+    }
 
     // gfx clock
     clock_spec = &spec->clock_freq[clk_cnt];
@@ -574,6 +587,7 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
     amdsmi_status_t amdsmi_ret;
     uint32_t low_freq, high_freq;
     amdsmi_frequencies_t freq = {};
+    amdsmi_clk_info_t gfx_clk_info = {};
     aga_gpu_clock_status_t *clock_status;
     aga_gpu_clock_freq_range_t *mem_clock_spec = NULL;
     aga_gpu_clock_freq_range_t *gfx_clock_spec = NULL;
@@ -585,6 +599,20 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
         if (spec->clock_freq[i].clock_type == AGA_GPU_CLOCK_TYPE_SYSTEM) {
             gfx_clock_spec = &spec->clock_freq[i];
             break;
+        }
+    }
+    // RDNA GFX max clock is a mutable boost ceiling that rises under load; the
+    // init-time spec copied in here goes stale, so re-read it for RDNA GPUs.
+    // CDNA has a fixed DPM range so the init snapshot is always correct.
+    if (gfx_clock_spec && g_rdna_gpus.count(gpu_handle)) {
+        amdsmi_ret = amdsmi_get_clock_info(gpu_handle, AMDSMI_CLK_TYPE_GFX,
+                                           &gfx_clk_info);
+        if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+            AGA_TRACE_ERR("Failed to refresh GFX max clock for GPU {}, err {}",
+                          gpu_handle, amdsmi_ret);
+        } else {
+            gfx_clock_spec->lo = gfx_clk_info.min_clk;
+            gfx_clock_spec->hi = gfx_clk_info.max_clk;
         }
     }
     for (uint32_t i = 0; i < spec->num_clock_freqs; i++) {
