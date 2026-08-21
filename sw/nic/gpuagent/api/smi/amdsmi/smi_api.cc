@@ -111,6 +111,8 @@ smi_fill_gpu_clock_frequency_spec_ (aga_gpu_handle_t gpu_handle,
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
         AGA_TRACE_ERR("Failed to get video clock information for GPU {}, "
                       "err {}", gpu_handle, amdsmi_ret);
+        clock_spec->lo = AMDSMI_INVALID_UINT32;
+        clock_spec->hi = AMDSMI_INVALID_UINT32;
     } else {
         clock_spec->lo = clock_info.min_clk;
         clock_spec->hi = clock_info.max_clk;
@@ -124,6 +126,8 @@ smi_fill_gpu_clock_frequency_spec_ (aga_gpu_handle_t gpu_handle,
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
         AGA_TRACE_ERR("Failed to get data clock information for GPU {}, err {}",
                       gpu_handle, amdsmi_ret);
+        clock_spec->lo = AMDSMI_INVALID_UINT32;
+        clock_spec->hi = AMDSMI_INVALID_UINT32;
     } else {
         clock_spec->lo = clock_info.min_clk;
         clock_spec->hi = clock_info.max_clk;
@@ -643,6 +647,7 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
             clock_status->high_frequency = video_clock_spec->hi;
             // locked is N/A for video clocks
             clock_status->deep_sleep =
+                (clock_status->low_frequency != AMDSMI_INVALID_UINT32) &&
                 (clock_status->frequency < clock_status->low_frequency);
         }
         clk_cnt++;
@@ -657,6 +662,7 @@ smi_fill_clock_status_ (aga_gpu_handle_t gpu_handle,
             clock_status->high_frequency = data_clock_spec->hi;
             // locked is N/A for data clocks
             clock_status->deep_sleep =
+                (clock_status->low_frequency != AMDSMI_INVALID_UINT32) &&
                 (clock_status->frequency < clock_status->low_frequency);
         }
         clk_cnt++;
