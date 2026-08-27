@@ -39,7 +39,78 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build gpuagent
+        id: build
         run: |
+          # pipefail is on by default in Actions bash, so make's rc survives tee
           make gpuagent \
             GIT_COMMIT=$(git rev-list -1 HEAD --abbrev-commit) \
-            BUILD_DATE=$(date +%Y-%m-%dT%H:%M:%S%z)
+            BUILD_DATE=$(date +%Y-%m-%dT%H:%M:%S%z) \
+            2>&1 | tee build.log
+
+      - name: Build summary
+        if: always()
+        run: |
+          BIN=sw/nic/build/x86_64/sim/bin
+          {
+            echo "## gpuagent build"
+            echo ""
+            echo "- status: **${{ steps.build.outcome }}**"
+            echo "- commit: \`$(git rev-list -1 HEAD --abbrev-commit)\`"
+            echo ""
+            echo "| binary | size | sha256 |"
+            echo "|---|---|---|"
+            for b in gpuagent gpuagent_gim gpuagent_mock gpuctl; do
+              if [ -f "$BIN/$b" ]; then
+                sz=$(du -h "$BIN/$b" | cut -f1)
+                sha=$(sha256sum "$BIN/$b" | cut -c1-12)
+                echo "| $b | $sz | \`$sha\` |"
+              else
+                echo "| $b | — | **MISSING** |"
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload gpuagent
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpuagent
+          path: sw/nic/build/x86_64/sim/bin/gpuagent
+          retention-days: 10
+          if-no-files-found: warn
+
+      - name: Upload gpuagent_gim
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpuagent_gim
+          path: sw/nic/build/x86_64/sim/bin/gpuagent_gim
+          retention-days: 10
+          if-no-files-found: warn
+
+      - name: Upload gpuagent_mock
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpuagent_mock
+          path: sw/nic/build/x86_64/sim/bin/gpuagent_mock
+          retention-days: 10
+          if-no-files-found: warn
+
+      - name: Upload gpuctl
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpuctl
+          path: sw/nic/build/x86_64/sim/bin/gpuctl
+          retention-days: 10
+          if-no-files-found: warn
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 10
+          if-no-files-found: warn

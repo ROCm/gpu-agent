@@ -69,10 +69,14 @@ SRC   := $(shell find $(TOPDIR) -type d \( -path $(EXCLUDE_DIRS) \) -prune -o \
                                 -type d \( -path $(SMI_SRC_DIR) \) -prune -o \
                                 -type d \( -path $(BLD_PROTOGEN_DIR) \) -prune -o \
                                 -type f -name "*.cc" -print)
-SRC   += $(patsubst $(GPUAGENT_PROTO_DIR)/%.proto, $(GPUAGENT_PROTO_GEN_DIR)/%.pb.cc, $(GPUAGENT_PROTO_SRCS))
-SRC   += $(patsubst $(GPUAGENT_PROTO_DIR)/%.proto, $(GPUAGENT_PROTO_GEN_DIR)/%.grpc.pb.cc, $(GPUAGENT_PROTO_SRCS))
-SRC   += $(patsubst $(GOGO_PROTO_DIR)/%.proto, $(BLD_PROTOGEN_DIR)/%.pb.cc, $(GOGO_PROTO_SRCS))
-SRC   += $(patsubst $(GOGO_PROTO_DIR)/%.proto, $(BLD_PROTOGEN_DIR)/%.grpc.pb.cc, $(GOGO_PROTO_SRCS))
+# generated .cc named so grouped-target rules below can declare them as
+# buildable targets; else %.o:%.cc skips them under -j and link fails.
+GEN_CPP_PB     := $(patsubst $(GPUAGENT_PROTO_DIR)/%.proto, $(GPUAGENT_PROTO_GEN_DIR)/%.pb.cc, $(GPUAGENT_PROTO_SRCS))
+GEN_CPP_GRPC   := $(patsubst $(GPUAGENT_PROTO_DIR)/%.proto, $(GPUAGENT_PROTO_GEN_DIR)/%.grpc.pb.cc, $(GPUAGENT_PROTO_SRCS))
+GEN_GOGO_PB    := $(patsubst $(GOGO_PROTO_DIR)/%.proto, $(BLD_PROTOGEN_DIR)/%.pb.cc, $(GOGO_PROTO_SRCS))
+GEN_GOGO_GRPC  := $(patsubst $(GOGO_PROTO_DIR)/%.proto, $(BLD_PROTOGEN_DIR)/%.grpc.pb.cc, $(GOGO_PROTO_SRCS))
+GEN_CPP_SRCS   := $(GEN_CPP_PB) $(GEN_CPP_GRPC) $(GEN_GOGO_PB) $(GEN_GOGO_GRPC)
+SRC   += $(GEN_CPP_SRCS)
 SRC_C := $(shell find $(TOPDIR) -type d \( -path $(EXCLUDE_DIRS) \) -prune -o \
                                 -type d \( -path $(EXCLUDE_VENDOR) \) -prune -o \
                                 -type d \( -path $(BLD_DIR) \) -prune -o \
@@ -210,8 +214,14 @@ $(BUILD_LIBS_STAMP):
 
 build-libs: $(BUILD_LIBS_STAMP)
 
+# grouped-target (&:, make>=4.3): one protoc call declared producer of all its
+# .cc, so %.o:%.cc resolves every generated .o under -j. stamp order-only = protoc.
+$(GEN_GOGO_PB) $(GEN_GOGO_GRPC) &: $(GOGO_PROTO_SRCS) | $(BUILD_LIBS_STAMP)
+	@mkdir -p ${BLD_PROTOGEN_DIR}
+	LC_ALL=C LD_LIBRARY_PATH=${PROTOC_LIB_PATH} ${PROTOC} --cpp_out=${BLD_PROTOGEN_DIR} --grpc_out=${BLD_PROTOGEN_DIR} ${PROTOC_CPP_OPTS} ${PROTO_INCS} ${PROTOC_DEFS} ${GOGO_PROTO_SRCS}
 
-gen-protos:
+# gpuagent protos: gogo dep = shares gogo include path, gogo generated first.
+$(GEN_CPP_PB) $(GEN_CPP_GRPC) &: $(GPUAGENT_PROTO_SRCS) $(GEN_GOGO_PB) | $(BUILD_LIBS_STAMP)
 	@mkdir -p ${GPUAGENT_PROTO_GEN_DIR}
 	LC_ALL=C LD_LIBRARY_PATH=${PROTOC_LIB_PATH} ${PROTOC} --cpp_out=${GPUAGENT_PROTO_GEN_DIR} --grpc_out=${GPUAGENT_PROTO_GEN_DIR} ${PROTOC_CPP_OPTS} ${PROTO_INCS} ${PROTOC_DEFS} ${GPUAGENT_PROTO_SRCS}
 	@mkdir -p ${GPUAGENT_PROTO_GO_GEN_DIR}
@@ -220,13 +230,17 @@ gen-protos:
     --gogofast_out=Mgogo.proto=github.com/gogo/protobuf/gogoproto,plugins=grpc:${GPUAGENT_PROTO_GO_GEN_DIR} \
     types.proto ${GPU_PROTO_GO_FILES}
 
+# phony aliases -> real outputs (link targets + `make gen-protos` still work).
+.PHONY: gen-protos gogo-protos
+gogo-protos: $(GEN_GOGO_PB) $(GEN_GOGO_GRPC)
+gen-protos:  $(GEN_CPP_PB) $(GEN_CPP_GRPC)
+
+# order-only: objects need generated *.pb.h present, no recompile on proto refresh.
+$(OBJ) $(OBJ_GIM) $(OBJ_MOCK): | $(BUILD_LIBS_STAMP) $(GEN_CPP_SRCS)
+
 gpuctl:
 	@echo "building gpuctl"
 	CGO_ENABLED=0 go build -C cli -ldflags="-s -w -X github.com/ROCm/gpu-agent/sw/nic/gpuagent/cli/cmd.GpuctlVersion=$(GPUAGENT_VERSION)" -o ${BLD_BIN_DIR}/gpuctl
-
-gogo-protos:
-	@mkdir -p ${BLD_PROTOGEN_DIR}
-	LC_ALL=C LD_LIBRARY_PATH=${PROTOC_LIB_PATH} ${PROTOC} --cpp_out=${BLD_PROTOGEN_DIR} --grpc_out=${BLD_PROTOGEN_DIR} ${PROTOC_CPP_OPTS} ${PROTO_INCS} ${PROTOC_DEFS} ${GOGO_PROTO_SRCS}
 
 $(OBJ_DIR)/%.o: $(TOPDIR)/%.cc
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp

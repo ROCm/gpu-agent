@@ -17,6 +17,10 @@
 CC                    := gcc
 CXX                   := g++
 
+# libs serial across each other: each recipe already runs make -j$(nproc)
+# internally; concurrent libs = Nlibs x nproc oversubscribe -> OOM grpc/boost.
+.NOTPARALLEL:
+
 # Third-party build targets
 .PHONY: third-party-libs protobuf-build abseil-build grpc-build zeromq-build libev-build boost-build
 

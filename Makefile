@@ -3,6 +3,8 @@ CUR_USER:=$(shell whoami)
 CUR_TIME:=$(shell date +%Y-%m-%d_%H.%M.%S)
 GPUAGENT_BLD_CONTAINER_IMAGE ?= gpuagent-builder-rhel:9
 GPUAGENT_BLD_CONTAINER_IMAGE_UBUNTU ?= gpuagent-bldr-ubuntu:22.04
+# inner build -j width. override: make GPUAGENT_JOBS=N gpuagent. default nproc.
+GPUAGENT_JOBS ?= $(shell nproc)
 CONTAINER_NAME := gpuagent-ctr-${CUR_USER}_${CUR_TIME}
 CONTAINER_WORKDIR := /usr/src/github.com/ROCm/gpu-agent
 BUILD_DATE ?= $(shell date   +%Y-%m-%dT%H:%M:%S%z)
@@ -38,7 +40,7 @@ gpuagent:
 		-v $(CURDIR):$(CONTAINER_WORKDIR) \
 		-w $(CONTAINER_WORKDIR) \
 		${GPUAGENT_BLD_CONTAINER_IMAGE} \
-		bash -c " cd $(CONTAINER_WORKDIR) && source ~/.bashrc && make gopkglist && make -C sw/nic/gpuagent all"
+		bash -c " cd $(CONTAINER_WORKDIR) && source ~/.bashrc && make gopkglist && make -j$(GPUAGENT_JOBS) -C sw/nic/gpuagent all"
 
 .PHONY: docker-shell
 docker-shell:
