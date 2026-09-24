@@ -185,7 +185,7 @@ smi_state::smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
     }
 
     // get correctable and uncorrectable total error count beforehand
-    for (uint32_t b = AMDSMI_GPU_BLOCK_FIRST; b <= AMDSMI_GPU_BLOCK_LAST;
+    for (uint64_t b = AMDSMI_GPU_BLOCK_FIRST; b <= AMDSMI_GPU_BLOCK_LAST;
          b = b * 2) {
         // initialize ec to all 0s
         ec = { 0 };
