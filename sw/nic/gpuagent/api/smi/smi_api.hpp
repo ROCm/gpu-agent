@@ -41,6 +41,12 @@ extern "C" {
 }
 
 typedef amdsmi_processor_handle aga_gpu_handle_t;
+#elif defined(WSL_AMD_SMI)
+extern "C" {
+#include "nic/third-party/rocm/wsl_amd_smi_lib/include/amd_smi/amdsmi.h"
+}
+
+typedef amdsmi_processor_handle aga_gpu_handle_t;
 #endif
 
 namespace aga {
