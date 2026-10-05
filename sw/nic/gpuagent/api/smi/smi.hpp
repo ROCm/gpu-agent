@@ -39,6 +39,12 @@ extern "C" {
 }
 
 typedef amdsmi_processor_handle aga_gpu_handle_t;
+#elif defined(WSL_AMD_SMI)
+extern "C" {
+#include "nic/third-party/rocm/wsl_amd_smi_lib/include/amd_smi/amdsmi.h"
+}
+
+typedef amdsmi_processor_handle aga_gpu_handle_t;
 #endif
 
 // widen a uint8 NA sentinel (0xFF) to _dst_max_, else pass _val_ through

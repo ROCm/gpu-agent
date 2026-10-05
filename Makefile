@@ -60,6 +60,19 @@ docker-shell:
 		${GPUAGENT_BLD_CONTAINER_IMAGE} \
 		bash -c " cd $(CONTAINER_WORKDIR) && git config --global --add safe.directory $(CONTAINER_WORKDIR) && bash"
 
+# gpuagent_wsl: native build (no Docker) linking librocdxg libamd_smi.
+# Produces gpuagent-wsl binary. Requires rocdxg-amd-smi-lib at /opt/rocm-wsl
+# and WSL2 kernel. Override WSL_AMD_SMI_LIB_DIR if the library is elsewhere.
+.PHONY: gpuagent_wsl
+gpuagent_wsl:
+	${MAKE} -j$(GPUAGENT_JOBS) -C sw/nic/gpuagent gpuagent_wsl
+
+# wsl-shim: LD_PRELOAD shim alternative — redirects amdsmi calls to the
+# WSL libamd_smi at runtime; useful when gpuagent-wsl cannot be used.
+.PHONY: wsl-shim
+wsl-shim:
+	${MAKE} -C wsl-shim
+
 .PHONY: build-container
 build-container:
 	${MAKE} -C tools/build-container
