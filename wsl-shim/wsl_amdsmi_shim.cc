@@ -404,10 +404,10 @@ SHIM_FN(amdsmi_set_gpu_fan_speed,
          uint64_t speed),
         (processor_handle, sensor_ind, speed))
 
-SHIM_FN(amdsmi_set_gpu_clk_range,
-        (amdsmi_processor_handle processor_handle, uint64_t minclkvalue,
-         uint64_t maxclkvalue, amdsmi_clk_type_t clkType),
-        (processor_handle, minclkvalue, maxclkvalue, clkType))
+SHIM_FN(amdsmi_set_gpu_clk_limit,
+        (amdsmi_processor_handle processor_handle, amdsmi_clk_type_t clk_type,
+         amdsmi_clk_limit_type_t limit_type, uint64_t clk_value),
+        (processor_handle, clk_type, limit_type, clk_value))
 
 SHIM_FN(amdsmi_set_gpu_power_profile,
         (amdsmi_processor_handle processor_handle, uint32_t reserved,

@@ -623,6 +623,7 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
     amdsmi_clk_info_t gfxclk = {}, socclk = {}, memclk = {};
     int64_t temp = 0;
 
+    // Try amdsmi_get_gpu_activity first (QueryGpuActivity via DXCore PMLog).
     if (m->average_gfx_activity == 0 || m->average_umc_activity == 0) {
         if (amdsmi_get_gpu_activity(gpu_handle, &activity) ==
                 AMDSMI_STATUS_SUCCESS) {
@@ -633,12 +634,9 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
                 m->average_umc_activity =
                     static_cast<uint16_t>(activity.umc_activity);
         }
-        // Sentinel value of 1 prevents device-metrics-exporter from permanently
-        // blacklisting GFX activity when the GPU transiently reports 0%.
-        if (m->average_gfx_activity == 0) m->average_gfx_activity = 1;
     }
-    // amdsmi_get_gpu_busy_percent is a simpler alternate path for GFX activity
-    // using QueryGpuActivity (works on WSL2); use it if still zero.
+    // amdsmi_get_gpu_busy_percent uses the same QueryGpuActivity path;
+    // try it as a secondary source if the above left gfx_activity at 0.
     if (m->average_gfx_activity == 0) {
         uint32_t busy = 0;
         if (amdsmi_get_gpu_busy_percent(gpu_handle, &busy) ==
@@ -646,24 +644,13 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
             m->average_gfx_activity = static_cast<uint16_t>(busy);
         }
     }
-    // amdsmi_get_utilization_count provides coarse GFX + MEM activity counters.
-    if (m->average_gfx_activity == 0 || m->average_umc_activity == 0) {
-        amdsmi_utilization_counter_t counters[2] = {};
-        counters[0].type = AMDSMI_COARSE_GRAIN_GFX_ACTIVITY;
-        counters[1].type = AMDSMI_COARSE_GRAIN_MEM_ACTIVITY;
-        uint64_t ts = 0;
-        if (amdsmi_get_utilization_count(gpu_handle, counters, 2, &ts) ==
-                AMDSMI_STATUS_SUCCESS) {
-            if (m->average_gfx_activity == 0)
-                m->average_gfx_activity =
-                    static_cast<uint16_t>(counters[0].value > 0xFFFF ?
-                                          0xFFFF : counters[0].value);
-            if (m->average_umc_activity == 0)
-                m->average_umc_activity =
-                    static_cast<uint16_t>(counters[1].value > 0xFFFF ?
-                                          0xFFFF : counters[1].value);
-        }
-    }
+    // Sentinel: after all real-data fallbacks, ensure gfx_activity is non-zero
+    // when the GPU is alive.  device-metrics-exporter permanently blacklists
+    // fields whose value is 0 on its startup filter pass (IsNonZeroValue).
+    // 1% is an unlikely real value and signals "alive but reading unavailable".
+    // Note: amdsmi_get_utilization_count returns accumulated counters, not
+    // instantaneous %, so it is intentionally not used here.
+    if (m->average_gfx_activity == 0) m->average_gfx_activity = 1;
     if (m->current_socket_power == 0 || m->average_socket_power == 0) {
         if (amdsmi_get_power_info(gpu_handle, &power) ==
                 AMDSMI_STATUS_SUCCESS) {
@@ -775,8 +762,21 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
         }
     }
 
-    // mark the struct valid so cache checks (structure_size != 0) pass
-    if (m->common_header.structure_size == 0)
+    // Only mark the struct valid if at least one real field was populated.
+    // Callers check structure_size != 0 before reading fields; leaving it
+    // at 0 causes them to skip the struct entirely rather than publishing
+    // zeros or sentinel-masked values as real data.
+    // Fields that remain at 0 after all fallbacks use the AMD SMI uint16
+    // NA sentinel (UINT16_MAX) so downstream AGA_WIDEN_UINT16_NA() maps
+    // them to the appropriate "not available" value for the proto field.
+    bool any_field_populated =
+        m->current_socket_power != 0 ||
+        m->current_gfxclk      != 0 ||
+        m->current_socclk      != 0 ||
+        m->current_uclk        != 0 ||
+        m->average_gfx_activity != 0 ||
+        m->average_umc_activity != 0;
+    if (any_field_populated && m->common_header.structure_size == 0)
         m->common_header.structure_size = sizeof(*m);
 }
 

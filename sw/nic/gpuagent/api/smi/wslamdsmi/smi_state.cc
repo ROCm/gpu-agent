@@ -1179,8 +1179,9 @@ smi_state::event_monitor_cleanup(void) {
     for (uint32_t d = 0; d < num_gpu_; d++) {
         amdsmi_stop_gpu_event_notification(gpu_handles_[d]);
     }
-    // cleanup the event state
-    for (uint32_t d = 0; d < AGA_MAX_GPU; d++) {
+    // cleanup only the spinlocks that were initialized for discovered GPUs;
+    // entries beyond num_gpu_ have uninitialized handles and slock fields
+    for (uint32_t d = 0; d < num_gpu_; d++) {
         SDK_SPINLOCK_LOCK(&gpu_event_db_[gpu_handles_[d]].slock);
         gpu_event_db_[gpu_handles_[d]].event_map.clear();
         SDK_SPINLOCK_UNLOCK(&gpu_event_db_[gpu_handles_[d]].slock);
@@ -1612,11 +1613,15 @@ smi_state::teardown (void)
     if (!initialized_) {
         return SDK_RET_OK;
     }
-    // stop the watcher thread before shutting down the SMI library to
-    // avoid racing with the watcher timer callback which calls SMI APIs
+    // stop the watcher and event monitor threads before shutting down the SMI
+    // library to avoid racing with timer callbacks that call AMD SMI APIs
     if (watcher_thread_) {
         watcher_thread_->stop();
         watcher_thread_->wait();
+    }
+    if (event_monitor_thread_) {
+        event_monitor_thread_->stop();
+        event_monitor_thread_->wait();
     }
     status = amdsmi_shut_down();
     if (unlikely(status != AMDSMI_STATUS_SUCCESS)) {
