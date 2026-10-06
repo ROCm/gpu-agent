@@ -644,13 +644,6 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
             m->average_gfx_activity = static_cast<uint16_t>(busy);
         }
     }
-    // Sentinel: after all real-data fallbacks, ensure gfx_activity is non-zero
-    // when the GPU is alive.  device-metrics-exporter permanently blacklists
-    // fields whose value is 0 on its startup filter pass (IsNonZeroValue).
-    // 1% is an unlikely real value and signals "alive but reading unavailable".
-    // Note: amdsmi_get_utilization_count returns accumulated counters, not
-    // instantaneous %, so it is intentionally not used here.
-    if (m->average_gfx_activity == 0) m->average_gfx_activity = 1;
     if (m->current_socket_power == 0 || m->average_socket_power == 0) {
         if (amdsmi_get_power_info(gpu_handle, &power) ==
                 AMDSMI_STATUS_SUCCESS) {
@@ -663,12 +656,6 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
                 m->average_socket_power =
                     static_cast<uint16_t>(power.average_socket_power);
         }
-        // Ensure power is never reported as 0 when the GPU is alive.
-        // device-metrics-exporter permanently blacklists fields that are 0
-        // on its startup filter pass (IsNonZeroValue check). A value of 1
-        // is a valid sentinel meaning "alive but reading unavailable".
-        if (m->current_socket_power == 0) m->current_socket_power = 1;
-        if (m->average_socket_power == 0) m->average_socket_power = 1;
     }
     if (m->current_gfxclk == 0) {
         if (amdsmi_get_clock_info(gpu_handle, AMDSMI_CLK_TYPE_GFX, &gfxclk) ==
@@ -762,20 +749,29 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
         }
     }
 
-    // Only mark the struct valid if at least one real field was populated.
-    // Callers check structure_size != 0 before reading fields; leaving it
-    // at 0 causes them to skip the struct entirely rather than publishing
-    // zeros or sentinel-masked values as real data.
-    // Fields that remain at 0 after all fallbacks use the AMD SMI uint16
-    // NA sentinel (UINT16_MAX) so downstream AGA_WIDEN_UINT16_NA() maps
-    // them to the appropriate "not available" value for the proto field.
+    // Check whether any real API call populated data BEFORE applying sentinels.
+    // Sentinels are non-zero but do not represent real GPU readings; including
+    // them in this test would mark a wholly-unsupported metrics struct valid,
+    // causing callers to publish zero-initialized fields (temperature, fan,
+    // voltage, PCIe) as real data rather than AMD SMI NA sentinels.
     bool any_field_populated =
         m->current_socket_power != 0 ||
-        m->current_gfxclk      != 0 ||
-        m->current_socclk      != 0 ||
-        m->current_uclk        != 0 ||
+        m->current_gfxclk       != 0 ||
+        m->current_socclk       != 0 ||
+        m->current_uclk         != 0 ||
         m->average_gfx_activity != 0 ||
         m->average_umc_activity != 0;
+
+    // Apply exporter sentinels only when we have real data: device-metrics-
+    // exporter permanently blacklists fields whose value is 0 on its startup
+    // filter pass (IsNonZeroValue).  A sentinel of 1 signals "GPU alive but
+    // reading unavailable" without marking an otherwise-empty struct as valid.
+    if (any_field_populated) {
+        if (m->average_gfx_activity == 0) m->average_gfx_activity = 1;
+        if (m->current_socket_power == 0) m->current_socket_power  = 1;
+        if (m->average_socket_power == 0) m->average_socket_power  = 1;
+    }
+
     if (any_field_populated && m->common_header.structure_size == 0)
         m->common_header.structure_size = sizeof(*m);
 }
