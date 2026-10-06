@@ -63,9 +63,57 @@ docker-shell:
 # gpuagent_wsl: native build (no Docker) linking librocdxg libamd_smi.
 # Produces gpuagent-wsl binary. Requires rocdxg-amd-smi-lib at /opt/rocm-wsl
 # and WSL2 kernel. Override WSL_AMD_SMI_LIB_DIR if the library is elsewhere.
+#
+# Third-party libs (protobuf, grpc, abseil…) must be pre-built. Run
+# `make build-libs-docker` once if they have not been built yet.
 .PHONY: gpuagent_wsl
 gpuagent_wsl:
-	${MAKE} -j$(GPUAGENT_JOBS) -C sw/nic/gpuagent gpuagent_wsl
+	${MAKE} -j$(GPUAGENT_JOBS) -C sw/nic/gpuagent \
+		ABS_DIR=$(CURDIR)/sw \
+		gpuagent_wsl
+
+# gpuagent_wsl_docker: build gpuagent-wsl inside the RHEL9 build container.
+# A minimal stub libamd_smi.so is synthesised so the linker is satisfied
+# without requiring rocdxg-amd-smi-lib on the container host.  The binary
+# will not run (no real GPU lib), but this target verifies compile + link.
+WSL_STUB_DIR := /opt/rocm-wsl/lib
+.PHONY: gpuagent_wsl_docker
+gpuagent_wsl_docker:
+	docker run --rm --privileged \
+		--name ${CONTAINER_NAME} \
+		--network host \
+		-e "USER_NAME=$(shell whoami)" \
+		-e "USER_UID=$(shell id -u)" \
+		-e "USER_GID=$(shell id -g)" \
+		-e "GIT_COMMIT=${GIT_COMMIT}" \
+		-e "GIT_VERSION=${GIT_VERSION}" \
+		-e "BUILD_DATE=${BUILD_DATE}" \
+		-v $(CURDIR):$(CONTAINER_WORKDIR) \
+		-w $(CONTAINER_WORKDIR) \
+		${GPUAGENT_BLD_CONTAINER_IMAGE} \
+		bash -c " cd $(CONTAINER_WORKDIR) && source ~/.bashrc && \
+		  mkdir -p $(WSL_STUB_DIR) && \
+		  printf 'int amdsmi_init(unsigned long long f){return 0;}\n' | \
+		    gcc -shared -fPIC -o $(WSL_STUB_DIR)/libamd_smi.so -x c - && \
+		  ln -sf libamd_smi.so $(WSL_STUB_DIR)/libamd_smi.so.1 && \
+		  make gopkglist && \
+		  make -j$(GPUAGENT_JOBS) -C sw/nic/gpuagent \
+		    WSL_AMD_SMI_LIB_DIR=$(WSL_STUB_DIR) gpuagent_wsl"
+
+# build-libs-docker: compile third-party libs inside the build container so
+# that `make gpuagent_wsl` (a native build) can link against them.
+.PHONY: build-libs-docker
+build-libs-docker:
+	docker run --rm --privileged \
+		--name ${CONTAINER_NAME} \
+		--network host \
+		-e "USER_NAME=$(shell whoami)" \
+		-e "USER_UID=$(shell id -u)" \
+		-e "USER_GID=$(shell id -g)" \
+		-v $(CURDIR):$(CONTAINER_WORKDIR) \
+		-w $(CONTAINER_WORKDIR) \
+		${GPUAGENT_BLD_CONTAINER_IMAGE} \
+		bash -c "make -j$(GPUAGENT_JOBS) -C sw/nic/gpuagent build-libs"
 
 # wsl-shim: LD_PRELOAD shim alternative — redirects amdsmi calls to the
 # WSL libamd_smi at runtime; useful when gpuagent-wsl cannot be used.

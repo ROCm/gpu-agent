@@ -137,11 +137,110 @@ jobs:
           retention-days: 10
           if-no-files-found: warn
 
+      - name: Upload build libs tree
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-libs
+          path: sw/nic/build
+          retention-days: 1
+          if-no-files-found: warn
+
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: build-log
           path: build.log
+          retention-days: 10
+          if-no-files-found: warn
+
+  build-wsl:
+    name: Build WSL
+    runs-on: ubuntu-24.04
+    needs: build
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Read Go version
+        id: go-version
+        run: |
+          version=$(awk '$1 == "go" { print $2; exit }' sw/nic/gpuagent/go.mod)
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build builder container
+        uses: docker/build-push-action@v7
+        with:
+          context: tools/build-container
+          file: tools/build-container/Dockerfile.rhel9
+          load: true
+          tags: gpuagent-builder-rhel:9
+          build-args: |
+            GO_VERSION=${{ steps.go-version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Download pre-built third-party libs
+        uses: actions/download-artifact@v4
+        with:
+          name: build-libs
+          path: sw/nic/build
+
+      - name: Build gpuagent-wsl (stub libamd_smi)
+        id: build-wsl
+        run: |
+          make gpuagent_wsl_docker \
+            GIT_COMMIT=$(git rev-list -1 HEAD --abbrev-commit) \
+            BUILD_DATE=$(date +%Y-%m-%dT%H:%M:%S%z) \
+            2>&1 | tee build-wsl.log
+
+      - name: Build summary
+        if: always()
+        run: |
+          BIN=sw/nic/build/x86_64/sim/bin
+          {
+            echo "## gpuagent-wsl build"
+            echo ""
+            echo "- status: **${{ steps.build-wsl.outcome }}**"
+            echo "- commit: \`$(git rev-list -1 HEAD --abbrev-commit)\`"
+            echo ""
+            echo "| binary | size | sha256 |"
+            echo "|---|---|---|"
+            if [ -f "$BIN/gpuagent-wsl" ]; then
+              sz=$(du -h "$BIN/gpuagent-wsl" | cut -f1)
+              sha=$(sha256sum "$BIN/gpuagent-wsl" | cut -c1-12)
+              echo "| gpuagent-wsl | $sz | \`$sha\` |"
+            else
+              echo "| gpuagent-wsl | — | **MISSING** |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload gpuagent-wsl
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gpuagent-wsl
+          path: sw/nic/build/x86_64/sim/bin/gpuagent-wsl
+          retention-days: 10
+          if-no-files-found: warn
+
+      - name: Upload build-wsl log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-wsl-log
+          path: build-wsl.log
           retention-days: 10
           if-no-files-found: warn
