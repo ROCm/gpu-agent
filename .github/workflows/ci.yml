@@ -80,12 +80,14 @@ jobs:
 
       - name: Build summary
         if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
         run: |
           BIN=sw/nic/build/x86_64/sim/bin
           {
             echo "## gpuagent build"
             echo ""
-            echo "- status: **${{ steps.build.outcome }}**"
+            echo "- status: **${BUILD_OUTCOME}**"
             echo "- commit: \`$(git rev-list -1 HEAD --abbrev-commit)\`"
             echo ""
             echo "| binary | size | sha256 |"
@@ -208,12 +210,14 @@ jobs:
 
       - name: Build summary
         if: always()
+        env:
+          BUILD_WSL_OUTCOME: ${{ steps.build-wsl.outcome }}
         run: |
           BIN=sw/nic/build/x86_64/sim/bin
           {
             echo "## gpuagent-wsl build"
             echo ""
-            echo "- status: **${{ steps.build-wsl.outcome }}**"
+            echo "- status: **${BUILD_WSL_OUTCOME}**"
             echo "- commit: \`$(git rev-list -1 HEAD --abbrev-commit)\`"
             echo ""
             echo "| binary | size | sha256 |"
