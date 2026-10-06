@@ -443,7 +443,7 @@ gpu_fw_block_name_str_ (amdsmi_fw_block_t block)
     case AMDSMI_FW_ID_PLDM_BUNDLE:
         return "PLDM_BUNDLE";
     default:
-        return (std::string("FW_ID_")+ std::to_string(block)).c_str();
+        { static thread_local std::string s; s = "FW_ID_" + std::to_string(block); return s.c_str(); }
     }
 }
 
