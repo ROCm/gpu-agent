@@ -148,6 +148,7 @@ jobs:
           path: sw/nic/build
           retention-days: 1
           if-no-files-found: warn
+          include-hidden-files: true
 
       - name: Upload build log
         if: always()
