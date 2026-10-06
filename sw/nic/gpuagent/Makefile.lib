@@ -14,8 +14,8 @@
 # THE MATERIALS ARE DISTRIBUTED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
 # REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
-CC                    ?= gcc
-CXX                   ?= g++
+CC                    := gcc
+CXX                   := g++
 
 # cmake >= 4.0 requires an explicit minimum policy version for projects that
 # set cmake_minimum_required < 3.5 (grpc, abseil).  Detect and pass it.
