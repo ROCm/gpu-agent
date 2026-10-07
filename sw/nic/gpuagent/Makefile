@@ -86,6 +86,7 @@ INC_COMMON   := $(TOPDIR) $(BLD_ARCH_DIR) $(BLD_PROTOGEN_DIR) \
                 ${BLD_DIR}/include
 INC_AMD_SMI  := ${TOPDIR}/nic/third-party/rocm/amd_smi_lib/include/
 INC_GIM_SMI  := ${TOPDIR}/nic/third-party/rocm/gim_amd_smi_lib/include/
+INC_WSL_SMI  := ${TOPDIR}/nic/third-party/rocm/wsl_amd_smi_lib/include/
 
 # SMI sources
 SMI_CC_SRCS     	:= $(wildcard ${SMI_SRC_DIR}/*.cc)
@@ -102,6 +103,12 @@ GIM_SMI_CC_SRCS    	:= $(wildcard ${SMI_SRC_DIR}/gimamdsmi/*.cc)
 GIM_SMI_MOCK_SRCS   := $(wildcard ${SMI_SRC_DIR}/gimamdsmi/*mock*.cc)
 GIM_SMI_SRC         := $(SRC) $(filter-out $(SMI_MOCK_SRCS), $(SMI_CC_SRCS)) \
                        $(filter-out $(GIM_SMI_MOCK_SRCS), $(GIM_SMI_CC_SRCS))
+
+# wsl amdsmi sources (librocdxg-provided libamd_smi, WSL2 path)
+WSL_SMI_CC_SRCS    	:= $(wildcard ${SMI_SRC_DIR}/wslamdsmi/*.cc)
+WSL_SMI_MOCK_SRCS   := $(wildcard ${SMI_SRC_DIR}/wslamdsmi/*mock*.cc)
+WSL_SMI_SRC         := $(SRC) $(filter-out $(SMI_MOCK_SRCS), $(SMI_CC_SRCS)) \
+                       $(filter-out $(WSL_SMI_MOCK_SRCS), $(WSL_SMI_CC_SRCS))
 
 # amdsmi mock sources
 AMD_SMI_MOCK_SRC    := $(SRC) $(SMI_MOCK_SRCS) $(AMD_SMI_MOCK_SRCS)
@@ -126,9 +133,13 @@ OBJ_GIM         += $(patsubst $(TOPDIR)/%, $(OBJ_DIR_GIM)/%, $(SRC_C:.c=.o))
 OBJ_DIR_MOCK    := $(BLD_OUT_DIR)/$(TARGET)_mock_bin
 OBJ_MOCK        := $(patsubst $(TOPDIR)/%, $(OBJ_DIR_MOCK)/%, $(AMD_SMI_MOCK_SRC:.cc=.o))
 OBJ_MOCK        += $(patsubst $(TOPDIR)/%, $(OBJ_DIR_MOCK)/%, $(SRC_C:.c=.o))
+OBJ_DIR_WSL     := $(BLD_OUT_DIR)/$(TARGET)_wsl_bin
+OBJ_WSL         := $(patsubst $(TOPDIR)/%, $(OBJ_DIR_WSL)/%, $(WSL_SMI_SRC:.cc=.o))
+OBJ_WSL         += $(patsubst $(TOPDIR)/%, $(OBJ_DIR_WSL)/%, $(SRC_C:.c=.o))
 
 INCS_AMD_SMI    := $(addprefix -I,${INC_COMMON} ${INC_AMD_SMI})
 INCS_GIM_SMI    := $(addprefix -I,${INC_COMMON} ${INC_GIM_SMI})
+INCS_WSL_SMI    := $(addprefix -I,${INC_COMMON} ${INC_WSL_SMI})
 INCS_MOCK       := $(addprefix -I,${INC_COMMON})
 
 LDFLAGS_COMMON  := -pthread -rdynamic -no-canonical-prefixes -Wl,--gc-sections \
@@ -160,6 +171,12 @@ LDFLAGS_AMD_SMI := ${LDFLAGS_COMMON} \
 LDFLAGS_GIM_SMI := ${LDFLAGS_COMMON} \
                    -L${TOPDIR}/nic/third-party/rocm/gim_amd_smi_lib/x86_64/lib/ \
                    -l:libgim_amd_smi.so
+# WSL_AMD_SMI: link against librocdxg libamd_smi installed at /opt/rocm-wsl
+WSL_AMD_SMI_LIB_DIR ?= /opt/rocm-wsl/lib
+LDFLAGS_WSL_SMI := ${LDFLAGS_COMMON} \
+                   -L$(WSL_AMD_SMI_LIB_DIR) \
+                   -Wl,-rpath,$(WSL_AMD_SMI_LIB_DIR) \
+                   -l:libamd_smi.so
 LDFLAGS_MOCK    := ${LDFLAGS_COMMON}
 
 $(TARGET): build-libs gogo-protos gen-protos $(OBJ)
@@ -175,6 +192,11 @@ $(TARGET)_mock: build-libs gogo-protos gen-protos $(OBJ_MOCK)
 $(TARGET)_gim: build-libs gogo-protos gen-protos $(OBJ_GIM)
 	mkdir -p $(BLD_BIN_DIR)
 	$(CC) $(OBJ_GIM) $(LDFLAGS_GIM_SMI) -o $(BLD_BIN_DIR)/$(TARGET)_gim
+	${MAKE} gpuctl
+
+$(TARGET)_wsl: build-libs gogo-protos gen-protos $(OBJ_WSL)
+	mkdir -p $(BLD_BIN_DIR)
+	$(CC) $(OBJ_WSL) $(LDFLAGS_WSL_SMI) -o $(BLD_BIN_DIR)/$(TARGET)-wsl
 	${MAKE} gpuctl
 
 .PHONY: mod
@@ -236,7 +258,7 @@ gogo-protos: $(GEN_GOGO_PB) $(GEN_GOGO_GRPC)
 gen-protos:  $(GEN_CPP_PB) $(GEN_CPP_GRPC)
 
 # order-only: objects need generated *.pb.h present, no recompile on proto refresh.
-$(OBJ) $(OBJ_GIM) $(OBJ_MOCK): | $(BUILD_LIBS_STAMP) $(GEN_CPP_SRCS)
+$(OBJ) $(OBJ_GIM) $(OBJ_MOCK) $(OBJ_WSL): | $(BUILD_LIBS_STAMP) $(GEN_CPP_SRCS)
 
 gpuctl:
 	@echo "building gpuctl"
@@ -266,8 +288,16 @@ $(OBJ_DIR_MOCK)/%.o: $(TOPDIR)/%.c
 	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
 	$(CC) $(CFLAGS)  $(INCS_MOCK) -DAMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
 
+$(OBJ_DIR_WSL)/%.o: $(TOPDIR)/%.cc
+	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
+	$(CC) $(CFLAGS) $(DEFS) $(INCS_WSL_SMI) -DWSL_AMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
+
+$(OBJ_DIR_WSL)/%.o: $(TOPDIR)/%.c
+	@mkdir -p $(dir $@)  # Create the necessary subdirectories in temp
+	$(CC) $(CFLAGS)  $(INCS_WSL_SMI) -DWSL_AMD_SMI -D__FNAME__=__FILE__ -DGPUAGENT_VERSION=\"$(GPUAGENT_VERSION)\" -c $< -o $@
+
 clean:
-	rm -rf $(BLD_BIN_DIR) $(OBJ_DIR) $(OBJ_DIR_GIM) $(OBJ_DIR_MOCK) $(BLD_PROTOGEN_DIR); \
+	rm -rf $(BLD_BIN_DIR) $(OBJ_DIR) $(OBJ_DIR_GIM) $(OBJ_DIR_MOCK) $(OBJ_DIR_WSL) $(BLD_PROTOGEN_DIR); \
 	rm -rf $(GRPC_DIR)/cmake/build; \
 	rm -rf $(BLD_OUT_DIR)/.build_libs_done \
 	rm -rf $(ABSEIL_DIR)/cmake/build; sync

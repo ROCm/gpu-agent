@@ -17,6 +17,11 @@
 CC                    := gcc
 CXX                   := g++
 
+# cmake >= 4.0 requires an explicit minimum policy version for projects that
+# set cmake_minimum_required < 3.5 (grpc, abseil).  Detect and pass it.
+CMAKE_MAJOR := $(shell cmake --version 2>/dev/null | awk 'NR==1{split($$3,v,"."); print v[1]}')
+CMAKE_POLICY_FLAG := $(if $(filter 4 5 6 7 8 9,$(CMAKE_MAJOR)),-DCMAKE_POLICY_VERSION_MINIMUM=3.5,)
+
 # libs serial across each other: each recipe already runs make -j$(nproc)
 # internally; concurrent libs = Nlibs x nproc oversubscribe -> OOM grpc/boost.
 .NOTPARALLEL:
@@ -40,6 +45,7 @@ abseil-build:
 	mkdir -p cmake/build && \
 	cd cmake/build && \
 	cmake -DCMAKE_INSTALL_PREFIX=$(BLD_DIR) \
+		$(CMAKE_POLICY_FLAG) \
 		../../ && \
 	make -j$(shell nproc) && \
 	make install
@@ -52,6 +58,7 @@ grpc-build: protobuf-build abseil-build
 	cmake -DgRPC_INSTALL=ON \
 		-DgRPC_BUILD_TESTS=OFF \
 		-DCMAKE_INSTALL_PREFIX=$(BLD_DIR) \
+		$(CMAKE_POLICY_FLAG) \
 		../../ && \
 	make -j$(shell nproc) && \
 	make install && \
@@ -65,7 +72,7 @@ zeromq-build:
 	@echo "Building ZeroMQ..."
 	cd $(ZEROMQ_DIR) && \
 	./autogen.sh && \
-	./configure --prefix=$(BLD_DIR) && \
+	./configure --prefix=$(BLD_DIR) CXXFLAGS="-Wno-error=address" && \
 	make -j$(shell nproc) && \
 	make install
 
