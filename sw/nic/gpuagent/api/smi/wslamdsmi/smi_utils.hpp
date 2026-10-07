@@ -762,15 +762,11 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
         m->average_gfx_activity != 0 ||
         m->average_umc_activity != 0;
 
-    // Apply exporter sentinels only when we have real data: device-metrics-
-    // exporter permanently blacklists fields whose value is 0 on its startup
-    // filter pass (IsNonZeroValue).  A sentinel of 1 signals "GPU alive but
-    // reading unavailable" without marking an otherwise-empty struct as valid.
-    if (any_field_populated) {
-        if (m->average_gfx_activity == 0) m->average_gfx_activity = 1;
-        if (m->current_socket_power == 0) m->current_socket_power  = 1;
-        if (m->average_socket_power == 0) m->average_socket_power  = 1;
-    }
+    // Note: no zero-to-one sentinels applied here. The correct fix for
+    // device-metrics-exporter permanently blacklisting fields that are 0
+    // is to change its IsNonZeroValue check to IsValueApplicable (UINT_MAX
+    // sentinel) in gpuagent_gpu_metrics.go. A separate PR against
+    // ROCm/device-metrics-exporter addresses this upstream.
 
     if (any_field_populated && m->common_header.structure_size == 0)
         m->common_header.structure_size = sizeof(*m);
