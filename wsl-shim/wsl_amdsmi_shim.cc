@@ -70,7 +70,12 @@ static void *resolve(const char *name) {
     if (g_wsl2 && g_wsl_lib) {
         void *sym = dlsym(g_wsl_lib, name);
         if (sym) return sym;
-        /* Symbol absent in WSL library — fall through to system lib. */
+        // Symbol absent in the WSL library.  On WSL2 all handles (processor,
+        // socket, event) are opaque objects created by the librocdxg instance;
+        // passing them to the system libamd_smi via RTLD_NEXT would corrupt
+        // state or crash.  Return NULL so the SHIM_FN wrapper returns
+        // AMDSMI_STATUS_NOT_SUPPORTED instead of calling the wrong library.
+        return nullptr;
     }
     return dlsym(RTLD_NEXT, name);
 }

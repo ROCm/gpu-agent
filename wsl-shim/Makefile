@@ -17,6 +17,7 @@ $(TARGET): $(SRC)
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
 install: $(TARGET)
+	install -d $(INSTALL_DIR)
 	install -m 0755 $(TARGET) $(INSTALL_DIR)/$(TARGET)
 
 clean:
