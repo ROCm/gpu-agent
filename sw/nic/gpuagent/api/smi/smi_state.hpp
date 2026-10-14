@@ -131,8 +131,13 @@ public:
      sdk_ret_t watcher_destroy(void);
 
      /// \brief    get and update watch fields for all GPUs
+     /// \param[out] watch_db       db to be updated
+     /// \param[in]  refresh_slow   if false, slow tier attrs are carried
+     ///                            forward from the last refresh instead of
+     ///                            being re-read
      /// \return SDK_RET_OK or error status in case of failure
-     sdk_ret_t watcher_update_watch_db(aga_gpu_watch_db_t *watch_db);
+     sdk_ret_t watcher_update_watch_db(aga_gpu_watch_db_t *watch_db,
+                                       bool refresh_slow);
 
      /// \brief    function to check if there are any watch groups which have
      ///           had subscribers
@@ -152,12 +157,14 @@ public:
 
     /// \brief    update watcher fields of interest for a single GPU
     ///           (invoked by the watcher's gpu_db walk callback in gimamdsmi)
-    /// \param[in]  gpu_id      GPU id
-    /// \param[in]  gpu_handle  freshly-resolved GPU handle for this tick
-    /// \param[out] watch_db    db to be updated
+    /// \param[in]  gpu_id        GPU id
+    /// \param[in]  gpu_handle    freshly-resolved GPU handle for this tick
+    /// \param[out] watch_db      db to be updated
+    /// \param[in]  refresh_slow  if false, skip the slow tier reads
     /// \return SDK_RET_OK or error status in case of failure
     sdk_ret_t smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
-                  aga_gpu_handle_t gpu_handle, aga_gpu_watch_db_t *watch_db);
+                  aga_gpu_handle_t gpu_handle, aga_gpu_watch_db_t *watch_db,
+                  bool refresh_slow);
 
 private:
     /// \brief spawn event monitor thread
@@ -199,6 +206,9 @@ private:
     gpu_event_db_t gpu_event_db_;
     /// gpu watch database
     gpu_watch_subscriber_db_t gpu_watch_subscriber_db_;
+    /// last slow tier sample, carried forward on ticks that skip the slow
+    /// reads so subscribers never see a gap in counter data
+    aga_gpu_watch_fields_t slow_cache_[AGA_MAX_GPU];
 };
 
 /// global singleton smi state class instance

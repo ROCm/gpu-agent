@@ -28,6 +28,7 @@ limitations under the License.
 #include "nic/gpuagent/api/gpu_watch.hpp"
 #include "nic/gpuagent/api/aga_state.hpp"
 #include "nic/gpuagent/api/internal/aga_api_params.hpp"
+#include "nic/gpuagent/api/smi/smi_watch.hpp"
 
 namespace aga {
 
@@ -94,6 +95,9 @@ gpu_watch_entry::create_handler(api_params_base *api_params) {
     }
     key_ = spec->key;
     memcpy(&spec_, spec, sizeof(aga_gpu_watch_spec_t));
+    // the watcher keeps a single set of periods; a config change deletes and
+    // recreates the watch object, so create is the only place they can change
+    smi_watch_set_periods(spec->fast_period_secs, spec->slow_period_secs);
     return SDK_RET_OK;
 }
 

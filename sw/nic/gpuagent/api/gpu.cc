@@ -226,6 +226,43 @@ gpu_entry::update_stats(aga_gpu_watch_fields_t *stats) {
     return SDK_RET_OK;
 }
 
+// pack a flat uint64 array from the watch fields into an array-valued attribute
+// value; element i is emitted at index i with no sub-type qualifier
+static inline void
+aga_fill_watch_long_array (aga_gpu_watch_attr_value_t *attr_val,
+                           const uint64_t *src, uint32_t count) {
+    attr_val->type = AGA_GPU_WATCH_ATTR_VALUE_TYPE_LONG_ARRAY;
+    if (count > AGA_GPU_WATCH_MAX_INDEXED_VALS) {
+        count = AGA_GPU_WATCH_MAX_INDEXED_VALS;
+    }
+    attr_val->long_array.num_vals = count;
+    for (uint32_t k = 0; k < count; k++) {
+        attr_val->long_array.vals[k].index = k;
+        attr_val->long_array.vals[k].sub_type = 0;
+        attr_val->long_array.vals[k].val = src[k];
+    }
+}
+
+// pack an array-valued attribute carrying an explicit per-element index and
+// sub_type qualifier (used by clocks: index is the pull-path global clock slot,
+// sub_type is the aga_gpu_clock_type_t; 0 means none and the exporter drops it)
+static inline void
+aga_fill_watch_indexed_array (aga_gpu_watch_attr_value_t *attr_val,
+                              const uint32_t *index_arr,
+                              const uint32_t *sub_type_arr,
+                              const uint64_t *val_arr, uint32_t count) {
+    attr_val->type = AGA_GPU_WATCH_ATTR_VALUE_TYPE_LONG_ARRAY;
+    if (count > AGA_GPU_WATCH_MAX_INDEXED_VALS) {
+        count = AGA_GPU_WATCH_MAX_INDEXED_VALS;
+    }
+    attr_val->long_array.num_vals = count;
+    for (uint32_t k = 0; k < count; k++) {
+        attr_val->long_array.vals[k].index = index_arr[k];
+        attr_val->long_array.vals[k].sub_type = sub_type_arr[k];
+        attr_val->long_array.vals[k].val = val_arr[k];
+    }
+}
+
 sdk_ret_t
 gpu_entry::fill_gpu_watch_stats(aga_gpu_watch_attrs_t *stats) {
     for (auto i = 0; i < stats->num_attrs; i++) {
@@ -262,6 +299,27 @@ gpu_entry::fill_gpu_watch_stats(aga_gpu_watch_attrs_t *stats) {
             break;
         case AGA_GPU_WATCH_ATTR_ID_GPU_UTIL:
             attr_val->long_val = stats_.gpu_util;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_UMC_ACTIVITY:
+            attr_val->long_val = stats_.umc_activity;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_MM_ACTIVITY:
+            attr_val->long_val = stats_.mm_activity;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_AVG_POWER:
+            attr_val->long_val = stats_.avg_power;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_GFX_VOLTAGE:
+            attr_val->long_val = stats_.gfx_voltage;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_SOC_VOLTAGE:
+            attr_val->long_val = stats_.soc_voltage;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_MEM_VOLTAGE:
+            attr_val->long_val = stats_.mem_voltage;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ENERGY_CONSUMED:
+            attr_val->long_val = stats_.energy_consumed;
             break;
         case AGA_GPU_WATCH_ATTR_ID_GPU_MEMORY_USAGE:
             attr_val->long_val = stats_.gpu_memory_usage;
@@ -386,6 +444,120 @@ gpu_entry::fill_gpu_watch_stats(aga_gpu_watch_attrs_t *stats) {
         case AGA_GPU_WATCH_ATTR_ID_ECC_MPIO_UE:
             attr_val->long_val = stats_.mpio_uncorrectable_errors;
             break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_TOTAL:
+            attr_val->long_val = stats_.total_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_SDMA:
+            attr_val->long_val = stats_.sdma_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_GFX:
+            attr_val->long_val = stats_.gfx_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_MMHUB:
+            attr_val->long_val = stats_.mmhub_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_ATHUB:
+            attr_val->long_val = stats_.athub_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_PCIE_BIF:
+            attr_val->long_val = stats_.bif_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_HDP:
+            attr_val->long_val = stats_.hdp_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_XGMI_WAFL:
+            attr_val->long_val = stats_.xgmi_wafl_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_DF:
+            attr_val->long_val = stats_.df_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_SMN:
+            attr_val->long_val = stats_.smn_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_SEM:
+            attr_val->long_val = stats_.sem_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_MP0:
+            attr_val->long_val = stats_.mp0_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_MP1:
+            attr_val->long_val = stats_.mp1_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_FUSE:
+            attr_val->long_val = stats_.fuse_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_UMC:
+            attr_val->long_val = stats_.umc_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_MCA:
+            attr_val->long_val = stats_.mca_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_VCN:
+            attr_val->long_val = stats_.vcn_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_JPEG:
+            attr_val->long_val = stats_.jpeg_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_IH:
+            attr_val->long_val = stats_.ih_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_ECC_DEF_MPIO:
+            attr_val->long_val = stats_.mpio_deferred_errors;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_PCIE_REPLAY_COUNT:
+            attr_val->long_val = stats_.pcie_replay_count;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_PCIE_RECOVERY_COUNT:
+            attr_val->long_val = stats_.pcie_recovery_count;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_PCIE_REPLAY_ROLLOVER_COUNT:
+            attr_val->long_val = stats_.pcie_replay_rollover_count;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_PCIE_NACK_SENT_COUNT:
+            attr_val->long_val = stats_.pcie_nack_sent_count;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_PCIE_NACK_RECEIVED_COUNT:
+            attr_val->long_val = stats_.pcie_nack_received_count;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_GPU_POWER_USAGE:
+            attr_val->long_val = stats_.gpu_power_usage;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VRAM_MAX_BANDWIDTH:
+            attr_val->long_val = stats_.vram_max_bandwidth;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_EDGE_TEMP:
+            attr_val->long_val = stats_.edge_temperature;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_TOTAL_VRAM:
+            attr_val->long_val = stats_.total_vram;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_TOTAL_VISIBLE_VRAM:
+            attr_val->long_val = stats_.total_visible_vram;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_TOTAL_GTT:
+            attr_val->long_val = stats_.total_gtt;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_USED_VISIBLE_VRAM:
+            attr_val->long_val = stats_.used_visible_vram;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_USED_GTT:
+            attr_val->long_val = stats_.used_gtt;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_FREE_VRAM:
+            attr_val->long_val = stats_.free_vram;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_FREE_VISIBLE_VRAM:
+            attr_val->long_val = stats_.free_visible_vram;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_FREE_GTT:
+            attr_val->long_val = stats_.free_gtt;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_PCIE_SPEED:
+            attr_val->long_val = stats_.pcie_speed;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_PCIE_MAX_SPEED:
+            attr_val->long_val = stats_.pcie_max_speed;
+            break;
         case AGA_GPU_WATCH_ATTR_ID_XGMI_0_NOP_TX:
             attr_val->long_val = stats_.xgmi_neighbor0_tx_nops;
             break;
@@ -428,10 +600,125 @@ gpu_entry::fill_gpu_watch_stats(aga_gpu_watch_attrs_t *stats) {
         case AGA_GPU_WATCH_ATTR_ID_XGMI_5_THRPUT:
             attr_val->long_val = stats_.xgmi_neighbor5_tx_throughput;
             break;
+        case AGA_GPU_WATCH_ATTR_ID_HBM_TEMP:
+            aga_fill_watch_long_array(attr_val, stats_.hbm_temperature,
+                                      stats_.hbm_temperature_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VCN_ACTIVITY:
+            aga_fill_watch_long_array(attr_val, stats_.vcn_activity,
+                                      stats_.vcn_activity_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_JPEG_ACTIVITY:
+            aga_fill_watch_long_array(attr_val, stats_.jpeg_activity,
+                                      stats_.jpeg_activity_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_XGMI_LINK_RX:
+            aga_fill_watch_long_array(attr_val, stats_.xgmi_link_rx,
+                                      stats_.xgmi_link_rx_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_XGMI_LINK_TX:
+            aga_fill_watch_long_array(attr_val, stats_.xgmi_link_tx,
+                                      stats_.xgmi_link_tx_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_GFX_BUSY_INST:
+            aga_fill_watch_long_array(attr_val, stats_.gfx_busy_inst,
+                                      stats_.gfx_busy_inst_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VCN_BUSY_INST:
+            aga_fill_watch_long_array(attr_val, stats_.vcn_busy_inst,
+                                      stats_.vcn_busy_inst_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_JPEG_BUSY_INST:
+            aga_fill_watch_long_array(attr_val, stats_.jpeg_busy_inst,
+                                      stats_.jpeg_busy_inst_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_CLOCK_FREQ_CURRENT:
+            aga_fill_watch_indexed_array(attr_val, stats_.clock_index,
+                                         stats_.clock_type, stats_.clock_current,
+                                         stats_.clock_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_CLOCK_FREQ_MIN:
+            aga_fill_watch_indexed_array(attr_val, stats_.clock_index,
+                                         stats_.clock_type, stats_.clock_min,
+                                         stats_.clock_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_CLOCK_FREQ_MAX:
+            aga_fill_watch_indexed_array(attr_val, stats_.clock_index,
+                                         stats_.clock_type, stats_.clock_max,
+                                         stats_.clock_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_CURRENT_ACC_COUNTER:
+            attr_val->long_val = stats_.viol_current_acc_counter;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_PROC_HOT_RESIDENCY_ACC:
+            attr_val->long_val = stats_.viol_proc_hot_residency_acc;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_PPT_RESIDENCY_ACC:
+            attr_val->long_val = stats_.viol_ppt_residency_acc;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_SOCKET_THERMAL_RESIDENCY_ACC:
+            attr_val->long_val = stats_.viol_socket_thermal_residency_acc;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_VR_THERMAL_RESIDENCY_ACC:
+            attr_val->long_val = stats_.viol_vr_thermal_residency_acc;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_HBM_THERMAL_RESIDENCY_ACC:
+            attr_val->long_val = stats_.viol_hbm_thermal_residency_acc;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_PROC_HOT_RESIDENCY_PCT:
+            attr_val->long_val = stats_.viol_proc_hot_residency_pct;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_PPT_RESIDENCY_PCT:
+            attr_val->long_val = stats_.viol_ppt_residency_pct;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_SOCKET_THERMAL_RESIDENCY_PCT:
+            attr_val->long_val = stats_.viol_socket_thermal_residency_pct;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_VR_THERMAL_RESIDENCY_PCT:
+            attr_val->long_val = stats_.viol_vr_thermal_residency_pct;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_HBM_THERMAL_RESIDENCY_PCT:
+            attr_val->long_val = stats_.viol_hbm_thermal_residency_pct;
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_GFX_CLK_BELOW_HOST_LIMIT_POWER_ACC:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_below_power_acc,
+                                      stats_.viol_gfx_below_power_acc_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_GFX_CLK_BELOW_HOST_LIMIT_THERMAL_ACC:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_below_thermal_acc,
+                                      stats_.viol_gfx_below_thermal_acc_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_LOW_UTIL_ACC:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_low_util_acc,
+                                      stats_.viol_gfx_low_util_acc_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_GFX_CLK_BELOW_HOST_LIMIT_TOTAL_ACC:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_below_total_acc,
+                                      stats_.viol_gfx_below_total_acc_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_GFX_CLK_BELOW_HOST_LIMIT_POWER_PCT:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_below_power_pct,
+                                      stats_.viol_gfx_below_power_pct_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_GFX_CLK_BELOW_HOST_LIMIT_THERMAL_PCT:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_below_thermal_pct,
+                                      stats_.viol_gfx_below_thermal_pct_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_LOW_UTIL_PCT:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_low_util_pct,
+                                      stats_.viol_gfx_low_util_pct_count);
+            break;
+        case AGA_GPU_WATCH_ATTR_ID_VIOLATION_GFX_CLK_BELOW_HOST_LIMIT_TOTAL_PCT:
+            aga_fill_watch_long_array(attr_val, stats_.viol_gfx_below_total_pct,
+                                      stats_.viol_gfx_below_total_pct_count);
+            break;
         default:
+            // skip rather than abort: an attribute subscribed but not yet
+            // fillable (e.g. a deferred one) must not drop the whole frame
             AGA_TRACE_ERR("unknown watch attribute {}, GPU {}",
                           stats->attr[i].id, key_.str());
-            return SDK_RET_ERR;
+            attr_val->type = AGA_GPU_WATCH_ATTR_VALUE_TYPE_NONE;
+            break;
         }
     }
     return SDK_RET_OK;

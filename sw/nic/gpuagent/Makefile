@@ -104,7 +104,10 @@ GIM_SMI_SRC         := $(SRC) $(filter-out $(SMI_MOCK_SRCS), $(SMI_CC_SRCS)) \
                        $(filter-out $(GIM_SMI_MOCK_SRCS), $(GIM_SMI_CC_SRCS))
 
 # amdsmi mock sources
-AMD_SMI_MOCK_SRC    := $(SRC) $(SMI_MOCK_SRCS) $(AMD_SMI_MOCK_SRCS)
+# smi_watch.cc is backend agnostic and referenced from api/gpu_watch.cc, which
+# is in $(SRC); without it the mock link fails on undefined smi_watch_* symbols
+AMD_SMI_MOCK_SRC    := $(SRC) $(SMI_MOCK_SRCS) $(AMD_SMI_MOCK_SRCS) \
+                       ${SMI_SRC_DIR}/smi_watch.cc
 
 PROTO_INCS      := ${GPUAGENT_PROTO_DIR} \
                    ${TOPDIR}/vendor/github.com/gogo/protobuf/protobuf \

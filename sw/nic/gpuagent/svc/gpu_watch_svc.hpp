@@ -29,6 +29,7 @@ limitations under the License.
 #ifndef __AGA_SVC_GPU_WATCH_SVC_HPP__
 #define __AGA_SVC_GPU_WATCH_SVC_HPP__
 
+#include <memory>
 #include "nic/gpuagent/core/trace.hpp"
 #include "nic/gpuagent/api/include/base.hpp"
 #include "nic/gpuagent/svc/utils.hpp"
@@ -98,7 +99,10 @@ aga_svc_gpu_watch_get (const GPUWatchGetRequest *proto_req,
 {
     sdk_ret_t ret;
     aga_obj_key_t key;
-    aga_gpu_watch_info_t info;
+    // heap-allocated: large struct (AGA_MAX_GPU x AGA_GPU_WATCH_ATTRS_MAX
+    // array-valued attrs) would overflow the stack at the current cap
+    std::unique_ptr<aga_gpu_watch_info_t> info_holder(new aga_gpu_watch_info_t());
+    aga_gpu_watch_info_t &info = *info_holder;
 
     if (proto_req == NULL) {
         proto_rsp->set_apistatus(types::ApiStatus::API_STATUS_INVALID_ARG);
@@ -157,12 +161,22 @@ aga_svc_gpu_watch_subscribe(ServerContext* context,
         AGA_TRACE_ERR("Empty GPU watch subscribe request is not supported");
         return SDK_RET_INVALID_ARG;
     }
+    if (proto_req->id_size() > AGA_MAX_GPU_WATCH) {
+        AGA_TRACE_ERR("Number of GPU watch IDs {} exceeds maximum allowed {}",
+                      proto_req->id_size(), AGA_MAX_GPU_WATCH);
+        return SDK_RET_INVALID_ARG;
+    }
     aga_api_trace_verbose("GPUWatch", "Subscribe", proto_req);
     AGA_TRACE_VERBOSE("Rcvd GPU watch subscribe request from client {}, "
                       "stream {}", context->peer().c_str(), (void *)stream);
 
     for (auto i = 0; i < proto_req->id_size(); i++) {
-        aga_obj_key_proto_to_api_spec(&req.gpu_watch_ids[i], proto_req->id(i));
+        if (unlikely(aga_obj_key_proto_to_api_spec(&req.gpu_watch_ids[i],
+                         proto_req->id(i)) != SDK_RET_OK)) {
+            AGA_TRACE_ERR("Invalid GPU watch id at index {} in subscribe "
+                          "request", i);
+            return SDK_RET_INVALID_ARG;
+        }
         AGA_TRACE_DEBUG("Client {}, stream {} subscribed for watch group {}",
                         context->peer().c_str(), (void *)stream,
                         req.gpu_watch_ids[i].str());
@@ -170,6 +184,7 @@ aga_svc_gpu_watch_subscribe(ServerContext* context,
     req.num_gpu_watch_ids = proto_req->id_size();
     req.write_cb = aga_svc_gpu_watch_subscribe_write_cb;
     strncpy(req.client, context->peer().c_str(), AGA_MAX_GPU_WATCH_CLIENT_STR);
+    req.client[AGA_MAX_GPU_WATCH_CLIENT_STR] = '\0';
     req.stream = stream;
     aga_gpu_watch_subscribe(&req);
 

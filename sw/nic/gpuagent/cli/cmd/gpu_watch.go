@@ -447,32 +447,75 @@ func printGPUWatchStats(resp *aga.GPUWatch, statsOnly bool) {
 	}
 	for _, gpuAttr := range resp.GetStats().GetGPUWatchAttr() {
 		fmt.Printf("\n  GPU : %s\n", utils.IdToStr(gpuAttr.GetGPU()))
-		for i, attr := range gpuAttr.GetAttr() {
-			if i == 0 {
-				line := strings.Repeat("-", 42)
-				fmt.Printf("  %s\n", line)
-				fmt.Printf("  %-30s%-12s\n", "Attribute", "Value")
-				fmt.Printf("  %s\n", line)
+		rows := gpuWatchAttrRows(gpuAttr.GetAttr())
+		if len(rows) == 0 {
+			continue
+		}
+		// size the attribute column to the longest label; indexed attrs
+		// carry an index/qualifier suffix that overruns any fixed width
+		width := len("Attribute")
+		for _, r := range rows {
+			if len(r.label) > width {
+				width = len(r.label)
 			}
-			attrStr := strings.ToLower(strings.Replace(attr.GetId().String(),
-				"GPU_WATCH_ATTR_ID_", "", -1))
-			attrStr = strings.Replace(attrStr, "_", "-", -1)
-			switch attr.GetValue().GetWatchAttrVal().(type) {
-			case *aga.GPUWatchAttrVal_LongVal:
-				valStr := fmt.Sprintf("%v %s", attr.GetValue().GetLongVal(),
-					attr.GetValue().GetUnits())
-				fmt.Printf("  %-30s%-12v\n", attrStr, valStr)
-			case *aga.GPUWatchAttrVal_FloatVal:
-				valStr := fmt.Sprintf("%v %s", attr.GetValue().GetFloatVal(),
-					attr.GetValue().GetUnits())
-				fmt.Printf("  %-30s%-12v\n", attrStr, valStr)
-			case *aga.GPUWatchAttrVal_StringVal:
-				fmt.Printf("  %-30s%-12s\n", attrStr,
-					attr.GetValue().GetStringVal())
-			}
+		}
+		line := strings.Repeat("-", width+2+12)
+		fmt.Printf("  %s\n", line)
+		fmt.Printf("  %-*s  %s\n", width, "Attribute", "Value")
+		fmt.Printf("  %s\n", line)
+		for _, r := range rows {
+			fmt.Printf("  %-*s  %s\n", width, r.label, r.value)
 		}
 	}
 	fmt.Printf("\n%s\n", strings.Repeat("-", 60))
+}
+
+// one printable (attribute, value) line of a GPU watch sample
+type gpuWatchRow struct {
+	label string
+	value string
+}
+
+// flatten watch attributes into printable rows; an array-valued (indexed)
+// attribute expands to one row per element
+func gpuWatchAttrRows(attrs []*aga.GPUWatchAttr) []gpuWatchRow {
+	rows := []gpuWatchRow{}
+	for _, attr := range attrs {
+		attrStr := strings.ToLower(strings.Replace(attr.GetId().String(),
+			"GPU_WATCH_ATTR_ID_", "", -1))
+		attrStr = strings.Replace(attrStr, "_", "-", -1)
+		units := attr.GetValue().GetUnits()
+		switch attr.GetValue().GetWatchAttrVal().(type) {
+		case *aga.GPUWatchAttrVal_LongVal:
+			rows = append(rows, gpuWatchRow{attrStr,
+				fmt.Sprintf("%v %s", attr.GetValue().GetLongVal(), units)})
+		case *aga.GPUWatchAttrVal_FloatVal:
+			rows = append(rows, gpuWatchRow{attrStr,
+				fmt.Sprintf("%v %s", attr.GetValue().GetFloatVal(), units)})
+		case *aga.GPUWatchAttrVal_StringVal:
+			rows = append(rows, gpuWatchRow{attrStr,
+				attr.GetValue().GetStringVal()})
+		default:
+			// array-valued attrs stream their values in IndexedVal instead
+			// of the scalar oneof; label each with its index and qualifier
+			for _, iv := range attr.GetValue().GetIndexedVal() {
+				label := fmt.Sprintf("%s[%d]", attrStr, iv.GetIndex())
+				if iv.GetSubType() != "" {
+					label = fmt.Sprintf("%s[%d](%s)", attrStr, iv.GetIndex(),
+						iv.GetSubType())
+				}
+				var valStr string
+				switch iv.GetIndexedAttrVal().(type) {
+				case *aga.GPUWatchAttrIndexedVal_LongVal:
+					valStr = fmt.Sprintf("%v %s", iv.GetLongVal(), units)
+				case *aga.GPUWatchAttrIndexedVal_FloatVal:
+					valStr = fmt.Sprintf("%v %s", iv.GetFloatVal(), units)
+				}
+				rows = append(rows, gpuWatchRow{label, valStr})
+			}
+		}
+	}
+	return rows
 }
 
 func printGPUWatchSummary(count int) {

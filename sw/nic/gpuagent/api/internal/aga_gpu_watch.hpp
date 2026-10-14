@@ -52,6 +52,20 @@ typedef struct aga_gpu_watch_fields_s {
     uint64_t  pcie_bandwidth;
     /// gpu utilization
     uint64_t gpu_util;
+    /// gpu umc (memory controller) activity (in %)
+    uint64_t umc_activity;
+    /// gpu mm (multimedia) activity (in %)
+    uint64_t mm_activity;
+    /// average socket power (in Watts)
+    uint64_t avg_power;
+    /// gfx core voltage (in mV)
+    uint64_t gfx_voltage;
+    /// soc voltage (in mV)
+    uint64_t soc_voltage;
+    /// memory voltage (in mV)
+    uint64_t mem_voltage;
+    /// accumulated energy consumed (in uJ)
+    uint64_t energy_consumed;
     /// gpu VRAM memory usage
     uint64_t gpu_memory_usage;
     /// gpu total VRM memory
@@ -165,7 +179,153 @@ typedef struct aga_gpu_watch_fields_s {
     uint64_t xgmi_neighbor4_tx_throughput;
     /// transmit throughput to XGMI neighbor 5 (in Bytes per second)
     uint64_t xgmi_neighbor5_tx_throughput;
+    /// array-valued attrs: count + fixed array, element i -> *_index=i
+    /// HBM stack temperatures (in C)
+    uint32_t hbm_temperature_count;
+    uint64_t hbm_temperature[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// VCN engine activity (in %)
+    uint32_t vcn_activity_count;
+    uint64_t vcn_activity[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// JPEG engine activity (in %)
+    uint32_t jpeg_activity_count;
+    uint64_t jpeg_activity[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// XGMI per-link accumulated read data (in KB)
+    uint32_t xgmi_link_rx_count;
+    uint64_t xgmi_link_rx[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// XGMI per-link accumulated write data (in KB)
+    uint32_t xgmi_link_tx_count;
+    uint64_t xgmi_link_tx[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// per-XCC gfx busy instantaneous (in %)
+    uint32_t gfx_busy_inst_count;
+    uint64_t gfx_busy_inst[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// per-XCC vcn busy instantaneous (in %)
+    uint32_t vcn_busy_inst_count;
+    uint64_t vcn_busy_inst[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// per-XCC jpeg busy instantaneous (in %)
+    uint32_t jpeg_busy_inst_count;
+    uint64_t jpeg_busy_inst[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// clock status, one entry per (clock_type, instance); slow tier.
+    /// clock_index[] matches the pull-path global clk_cnt 1:1 (compacted, sparse)
+    uint32_t clock_count;
+    uint32_t clock_index[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t clock_type[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint64_t clock_current[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint64_t clock_min[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint64_t clock_max[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// flat (non-indexed) violation counters, from amdsmi_get_violation_status
+    uint64_t viol_current_acc_counter;
+    uint64_t viol_proc_hot_residency_acc;
+    uint64_t viol_ppt_residency_acc;
+    uint64_t viol_socket_thermal_residency_acc;
+    uint64_t viol_vr_thermal_residency_acc;
+    uint64_t viol_hbm_thermal_residency_acc;
+    uint64_t viol_proc_hot_residency_pct;
+    uint64_t viol_ppt_residency_pct;
+    uint64_t viol_socket_thermal_residency_pct;
+    uint64_t viol_vr_thermal_residency_pct;
+    uint64_t viol_hbm_thermal_residency_pct;
+    /// per-XCC violation counters
+    uint32_t viol_gfx_below_power_acc_count;
+    uint64_t viol_gfx_below_power_acc[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t viol_gfx_below_thermal_acc_count;
+    uint64_t viol_gfx_below_thermal_acc[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t viol_gfx_low_util_acc_count;
+    uint64_t viol_gfx_low_util_acc[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t viol_gfx_below_total_acc_count;
+    uint64_t viol_gfx_below_total_acc[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t viol_gfx_below_power_pct_count;
+    uint64_t viol_gfx_below_power_pct[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t viol_gfx_below_thermal_pct_count;
+    uint64_t viol_gfx_below_thermal_pct[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t viol_gfx_low_util_pct_count;
+    uint64_t viol_gfx_low_util_pct[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    uint32_t viol_gfx_below_total_pct_count;
+    uint64_t viol_gfx_below_total_pct[AGA_GPU_WATCH_MAX_INDEXED_VALS];
+    /// ECC deferred error counters (third category alongside CE/UE)
+    uint64_t total_deferred_errors;
+    uint64_t sdma_deferred_errors;
+    uint64_t gfx_deferred_errors;
+    uint64_t mmhub_deferred_errors;
+    uint64_t athub_deferred_errors;
+    uint64_t bif_deferred_errors;
+    uint64_t hdp_deferred_errors;
+    uint64_t xgmi_wafl_deferred_errors;
+    uint64_t df_deferred_errors;
+    uint64_t smn_deferred_errors;
+    uint64_t sem_deferred_errors;
+    uint64_t mp0_deferred_errors;
+    uint64_t mp1_deferred_errors;
+    uint64_t fuse_deferred_errors;
+    uint64_t umc_deferred_errors;
+    uint64_t mca_deferred_errors;
+    uint64_t vcn_deferred_errors;
+    uint64_t jpeg_deferred_errors;
+    uint64_t ih_deferred_errors;
+    uint64_t mpio_deferred_errors;
+    /// PCIe accumulated counters (from the bulk gpu metrics read)
+    uint64_t pcie_replay_count;
+    uint64_t pcie_recovery_count;
+    uint64_t pcie_replay_rollover_count;
+    uint64_t pcie_nack_sent_count;
+    uint64_t pcie_nack_received_count;
+    /// additional bulk scalars
+    uint64_t gpu_power_usage;
+    uint64_t vram_max_bandwidth;
+    uint64_t edge_temperature;
+    /// memory totals/used/free (in MB) from dedicated amdsmi calls
+    uint64_t total_vram;
+    uint64_t total_visible_vram;
+    uint64_t total_gtt;
+    uint64_t used_visible_vram;
+    uint64_t used_gtt;
+    uint64_t free_vram;
+    uint64_t free_visible_vram;
+    uint64_t free_gtt;
+    /// PCIe link speed (in GT/s) from amdsmi_get_pcie_info
+    uint64_t pcie_speed;
+    uint64_t pcie_max_speed;
 } aga_gpu_watch_fields_t;
+
+/// \brief    reset the fast-tier fields of a watch record to the NA sentinel
+/// fast-tier fields are re-read every watcher tick, so they must start at NA:
+/// a failed read then reports not-applicable instead of a stale value carried
+/// forward from the last slow refresh. slow-tier fields are untouched here so
+/// counters keep carrying forward on ticks that skip the slow reads.
+static inline void
+aga_gpu_watch_reset_fast_fields (aga_gpu_watch_fields_t *wi)
+{
+    // scalars filled from the per-tick bulk gpu metrics read
+    wi->gpu_clock = UINT64_MAX;
+    wi->memory_clock = UINT64_MAX;
+    wi->gpu_temperature = UINT64_MAX;
+    wi->memory_temperature = UINT64_MAX;
+    wi->power_usage = UINT64_MAX;
+    wi->gpu_util = UINT64_MAX;
+    wi->umc_activity = UINT64_MAX;
+    wi->mm_activity = UINT64_MAX;
+    wi->avg_power = UINT64_MAX;
+    wi->gfx_voltage = UINT64_MAX;
+    wi->soc_voltage = UINT64_MAX;
+    wi->mem_voltage = UINT64_MAX;
+    wi->energy_consumed = UINT64_MAX;
+    wi->gpu_power_usage = UINT64_MAX;
+    wi->vram_max_bandwidth = UINT64_MAX;
+    wi->edge_temperature = UINT64_MAX;
+    wi->pcie_replay_count = UINT64_MAX;
+    wi->pcie_recovery_count = UINT64_MAX;
+    wi->pcie_replay_rollover_count = UINT64_MAX;
+    wi->pcie_nack_sent_count = UINT64_MAX;
+    wi->pcie_nack_received_count = UINT64_MAX;
+    // array-valued fast attrs: empty until (re)populated this tick
+    wi->hbm_temperature_count = 0;
+    wi->vcn_activity_count = 0;
+    wi->jpeg_activity_count = 0;
+    wi->xgmi_link_rx_count = 0;
+    wi->xgmi_link_tx_count = 0;
+    wi->gfx_busy_inst_count = 0;
+    wi->vcn_busy_inst_count = 0;
+    wi->jpeg_busy_inst_count = 0;
+}
 
 typedef struct aga_gpu_watch_db_s {
     aga_gpu_watch_fields_t watch_info[AGA_MAX_GPU];

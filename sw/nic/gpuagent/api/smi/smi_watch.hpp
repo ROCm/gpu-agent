@@ -65,6 +65,42 @@ typedef struct gpu_watch_subscriber_info_s {
     aga_gpu_watch_client_ctxt_t *client_ctxt;
 } gpu_watch_subscriber_info_t;
 
+/// \brief    sampling tier of a watch attribute
+typedef enum gpu_watch_tier_e {
+    /// operator facing signals, sampled every fast period
+    GPU_WATCH_TIER_FAST = 0,
+    /// counters, sampled every slow period
+    GPU_WATCH_TIER_SLOW = 1,
+} gpu_watch_tier_t;
+
+/// \brief    a watchable GPU attr and the tier it is sampled at
+/// NOTE:
+/// the tier is carried per entry because it does not follow attr id order,
+/// e.g. GPU_MEMORY_USAGE sits among the fast ids but needs its own smi call
+typedef struct gpu_watch_field_s {
+    /// watch attribute id
+    aga_gpu_watch_attr_id_t id;
+    /// sampling tier the attribute belongs to
+    gpu_watch_tier_t tier;
+} gpu_watch_field_t;
+
+/// \brief    list of all watchable GPU attrs, shared by all SMI backends
+extern vector<gpu_watch_field_t> g_watch_field_list;
+
+/// \brief    populate the watchable GPU attr list, called once at watcher init
+void smi_watch_field_list_init(void);
+
+/// \brief    set the fast and slow tier sampling periods
+/// \param[in] fast_secs    fast tier period in seconds, 0 selects the default
+/// \param[in] slow_secs    slow tier period in seconds, 0 selects the default
+void smi_watch_set_periods(uint32_t fast_secs, uint32_t slow_secs);
+
+/// \brief    current fast tier sampling period, in seconds
+uint32_t smi_watch_fast_period(void);
+
+/// \brief    current slow tier sampling period, in seconds
+uint32_t smi_watch_slow_period(void);
+
 /// \@}
 
 }    // namespace aga

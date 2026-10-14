@@ -22,6 +22,7 @@
 //----------------------------------------------------------------------------
 
 #include <cstdlib>
+#include <map>
 #include <memory>
 #include <vector>
 extern "C" {
@@ -31,6 +32,7 @@ extern "C" {
 #include "nic/gpuagent/core/aga_core.hpp"
 #include "nic/gpuagent/core/ipc_msg.hpp"
 #include "nic/gpuagent/api/aga_state.hpp"
+#include "nic/gpuagent/api/smi/smi.hpp"
 #include "nic/gpuagent/api/smi/smi_state.hpp"
 #include "nic/gpuagent/api/smi/smi_watch.hpp"
 #include "nic/gpuagent/api/smi/gimamdsmi/smi_session.hpp"
@@ -71,119 +73,42 @@ namespace event = sdk::event_thread;
 #define AGA_WATCHER_MAX_KEEP_AGE           60
 /// max samples of a field value
 #define AGA_WATCHER_MAX_KEEP_SAMPLES       10
-/// gpu watch subscriber notify frequency (in seconds)
-#define AGA_WATCHER_GPU_WATCH_UPDATE_FREQ  5
 
 namespace aga {
 
 /// global singleton smi state class instance
 smi_state g_smi_state;
 
-/// vector of all watchable GPU attrs
-static std::vector<aga_gpu_watch_attr_id_t> g_watch_field_list;
-
-static void
-smi_watch_field_list_init (void)
-{
-    // initialize GPU watchable attrs list
-    // these attributes can be obtained by calls to amdsmi library without any
-    // pre-reqs
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_GPU_CLOCK);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_MEM_CLOCK);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_MEMORY_TEMP);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_GPU_TEMP);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_POWER_USAGE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_PCIE_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_PCIE_RX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_PCIE_BANDWIDTH);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_GPU_UTIL);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_GPU_MEMORY_USAGE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_CORRECT_TOTAL);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_UNCORRECT_TOTAL);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_SDMA_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_SDMA_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_GFX_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_GFX_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MMHUB_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MMHUB_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_ATHUB_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_ATHUB_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_PCIE_BIF_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_PCIE_BIF_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_HDP_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_HDP_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_XGMI_WAFL_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_XGMI_WAFL_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_DF_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_DF_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_SMN_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_SMN_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_SEM_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_SEM_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MP0_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MP0_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MP1_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MP1_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_FUSE_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_FUSE_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_UMC_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_UMC_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MCA_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MCA_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_VCN_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_VCN_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_JPEG_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_JPEG_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_IH_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_IH_UE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MPIO_CE);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_ECC_MPIO_UE);
-    // the following attributes require that a counter is created and started
-    // before amdsmi API calls can be used to read their values; counter is
-    // created and started during watcher initialization
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_0_NOP_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_0_REQ_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_0_RESP_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_0_BEATS_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_1_NOP_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_1_REQ_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_1_RESP_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_1_BEATS_TX);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_0_THRPUT);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_1_THRPUT);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_2_THRPUT);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_3_THRPUT);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_4_THRPUT);
-    g_watch_field_list.push_back(AGA_GPU_WATCH_ATTR_ID_XGMI_5_THRPUT);
-}
-
 sdk_ret_t
 smi_state::smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
                amdsmi_processor_handle gpu_handle,
-               aga_gpu_watch_db_t *watch_db) {
-    int64_t int64_val = 0;
+               aga_gpu_watch_db_t *watch_db, bool refresh_slow) {
     amdsmi_error_count_t ec;
-    amdsmi_clk_type_t clk_type;
     amdsmi_status_t amdsmi_ret;
+    bool ecc_read_succeeded = false;
     uint64_t pcie_tx = 0, pcie_rx = 0;
-    amdsmi_clk_info_t clk_info = { 0 };
-    amdsmi_pcie_info_t pcie_info = { 0 };
     uint64_t total_correctable_count = 0;
-    amdsmi_temperature_type_t sensor_type;
     uint64_t total_uncorrectable_count = 0;
-    amdsmi_power_info_t power_info = { 0 };
-    amdsmi_engine_usage_t usage_info = { 0 };
 
-    watch_db->watch_info[gpu_id] = { 0 };
+    // seed slow tier fields (ECC/XGMI/violation counters, clocks, memory) from
+    // the last slow sample so they carry forward on ticks that skip the slow
+    // reads, then reset fast tier fields to NA so a failed read this tick is
+    // reported not-applicable rather than as a stale carried-forward value
+    watch_db->watch_info[gpu_id] = slow_cache_[gpu_id];
+    aga_gpu_watch_reset_fast_fields(&watch_db->watch_info[gpu_id]);
 
     // get correctable and uncorrectable total error count beforehand
-    for (uint64_t b = AMDSMI_GPU_BLOCK_FIRST; b <= AMDSMI_GPU_BLOCK_LAST;
+    // ECC is slow tier, so the per block reads are skipped entirely on fast
+    // only ticks and the seeded values stand
+    for (uint64_t b = AMDSMI_GPU_BLOCK_FIRST;
+         refresh_slow && (b <= AMDSMI_GPU_BLOCK_LAST);
          b = b * 2) {
         // initialize ec to all 0s
         ec = { 0 };
         amdsmi_ret = amdsmi_get_gpu_ecc_count(gpu_handle,
                                               (amdsmi_gpu_block_t)(b), &ec);
         if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
+            ecc_read_succeeded = true;
             total_correctable_count += ec.correctable_count;
             total_uncorrectable_count += ec.uncorrectable_count;
             switch (b) {
@@ -307,90 +232,94 @@ smi_state::smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
         }
     }
 
-    // loop through all watch fields
-    for (uint32_t i = 0; i < g_watch_field_list.size(); i++) {
-        switch (g_watch_field_list[i]) {
-        case AGA_GPU_WATCH_ATTR_ID_GPU_CLOCK:
-            clk_type = AMDSMI_CLK_TYPE_SYS;
-            // get clock frequency
-            amdsmi_ret = amdsmi_get_clock_info(gpu_handle, clk_type, &clk_info);
-            if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
-                watch_db->watch_info[gpu_id].gpu_clock = clk_info.clk;
-            }
-            break;
-        case AGA_GPU_WATCH_ATTR_ID_MEM_CLOCK:
-            clk_type = AMDSMI_CLK_TYPE_MEM;
-            // get clock frequency
-            amdsmi_ret = amdsmi_get_clock_info(gpu_handle, clk_type, &clk_info);
-            if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
-                watch_db->watch_info[gpu_id].memory_clock = clk_info.clk;
-            }
-            break;
-        case AGA_GPU_WATCH_ATTR_ID_MEMORY_TEMP:
-            sensor_type = AMDSMI_TEMPERATURE_TYPE_VRAM;
-            // get GPU memory temperature
-            amdsmi_ret = amdsmi_get_temp_metric(gpu_handle, sensor_type,
-                             AMDSMI_TEMP_CURRENT, &int64_val);
-            if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
-                watch_db->watch_info[gpu_id].memory_temperature = int64_val;
-            }
-            break;
-        case AGA_GPU_WATCH_ATTR_ID_GPU_TEMP:
-            sensor_type = AMDSMI_TEMPERATURE_TYPE_EDGE;
-            // get GPU temperature
-            amdsmi_ret = amdsmi_get_temp_metric(gpu_handle, sensor_type,
-                             AMDSMI_TEMP_CURRENT, &int64_val);
-            if (amdsmi_ret == AMDSMI_STATUS_NOT_SUPPORTED) {
-                // fallback to hotspot temperature as some card may not have
-                // edge temperature.
-                sensor_type = AMDSMI_TEMPERATURE_TYPE_JUNCTION;
-                amdsmi_ret = amdsmi_get_temp_metric(gpu_handle, sensor_type,
-                                 AMDSMI_TEMP_CURRENT, &int64_val);
-            }
-            if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
-                watch_db->watch_info[gpu_id].gpu_temperature = int64_val;
-            }
-            break;
-        case AGA_GPU_WATCH_ATTR_ID_POWER_USAGE:
-            amdsmi_ret = amdsmi_get_power_info(gpu_handle, &power_info);
-            if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
-                if (power_info.socket_power != 65535) {
-                    watch_db->watch_info[gpu_id].power_usage =
-                        power_info.socket_power;
+    // Single firmware metrics read: one amdsmi_get_gpu_metrics() call supplies
+    // all live GPU-level fast fields. Per-attribute amdsmi calls add latency and
+    // break 1s/10ms granularity, so every fast field below comes from this one
+    // read instead of a call per attribute.
+    {
+        uint32_t metric_count = 256;
+        std::vector<amdsmi_metric_t> metrics(metric_count);
+        amdsmi_ret = amdsmi_get_gpu_metrics(gpu_handle, &metric_count,
+                                            metrics.data());
+        if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
+            metrics.resize(metric_count);
+            auto &wi = watch_db->watch_info[gpu_id];
+            std::map<amdsmi_metric_name_t, uint64_t> mval;
+            auto set_field = [&](amdsmi_metric_name_t n, uint64_t *dst) {
+                auto it = mval.find(n);
+                if (it != mval.end()) {
+                    *dst = it->second;
+                }
+            };
+            // the stream carries a uint16 firmware value in m.val, so an NA
+            // reads back as 0xFFFF; widen it to UINT64_MAX because every watch
+            // field is uint64_t and the exporter only recognises an NA sentinel
+            // that matches the full field width
+            auto set_field_na = [&](amdsmi_metric_name_t n, uint64_t *dst) {
+                auto it = mval.find(n);
+                if (it != mval.end()) {
+                    *dst = AGA_WIDEN_UINT16_NA((uint16_t)it->second, UINT64_MAX);
+                }
+            };
+            for (const auto &m : metrics) {
+                // keep GPU-level aggregates only (skip per-XCP/AID instances)
+                if (m.res_group == AMDSMI_METRIC_RES_GROUP_GPU) {
+                    mval[m.name] = m.val;
                 }
             }
-            break;
+            set_field_na(AMDSMI_METRIC_NAME_CLK_GFX,        &wi.gpu_clock);
+            set_field(AMDSMI_METRIC_NAME_CLK_MEM,           &wi.memory_clock);
+            set_field(AMDSMI_METRIC_NAME_TEMP_HOTSPOT_CURR, &wi.gpu_temperature);
+            set_field_na(AMDSMI_METRIC_NAME_TEMP_MEM_CURR,  &wi.memory_temperature);
+            set_field_na(AMDSMI_METRIC_NAME_POWER_CURR,     &wi.power_usage);
+            set_field_na(AMDSMI_METRIC_NAME_POWER_CURR,     &wi.avg_power);
+            set_field_na(AMDSMI_METRIC_NAME_USAGE_GFX,      &wi.gpu_util);
+            set_field_na(AMDSMI_METRIC_NAME_USAGE_MEM,      &wi.umc_activity);
+            set_field_na(AMDSMI_METRIC_NAME_USAGE_MM,       &wi.mm_activity);
+            set_field_na(AMDSMI_METRIC_NAME_VOLT_GFX,       &wi.gfx_voltage);
+            set_field_na(AMDSMI_METRIC_NAME_VOLT_SOC,       &wi.soc_voltage);
+            set_field_na(AMDSMI_METRIC_NAME_VOLT_MEM,       &wi.mem_voltage);
+            // bandwidth is a uint32 in the stream, so it needs the wider macro
+            {
+                auto it = mval.find(AMDSMI_METRIC_NAME_PCIE_BANDWIDTH);
+                if (it != mval.end()) {
+                    wi.pcie_bandwidth =
+                        AGA_WIDEN_UINT32_NA((uint32_t)it->second, UINT64_MAX);
+                }
+            }
+        }
+    }
+
+    // loop through all watch fields
+    for (uint32_t i = 0; i < g_watch_field_list.size(); i++) {
+        // on fast only ticks the slow tier attrs keep their seeded values;
+        // falling through would clobber them with this tick's zeroed locals
+        if (!refresh_slow &&
+            (g_watch_field_list[i].tier == GPU_WATCH_TIER_SLOW)) {
+            continue;
+        }
+        switch (g_watch_field_list[i].id) {
+        // GPU_CLOCK, MEM_CLOCK, MEMORY_TEMP, GPU_TEMP, POWER_USAGE,
+        // PCIE_BANDWIDTH, GPU_UTIL, UMC_ACTIVITY and MM_ACTIVITY are populated
+        // above from the single amdsmi_get_gpu_metrics() read.
         case AGA_GPU_WATCH_ATTR_ID_PCIE_TX:
             watch_db->watch_info[gpu_id].pcie_tx_usage = pcie_tx;
             break;
         case AGA_GPU_WATCH_ATTR_ID_PCIE_RX:
             watch_db->watch_info[gpu_id].pcie_rx_usage = pcie_rx;
             break;
-        case AGA_GPU_WATCH_ATTR_ID_PCIE_BANDWIDTH:
-            // PCIe bandwidth
-            amdsmi_ret = amdsmi_get_pcie_info(gpu_handle, &pcie_info);
-            if (unlikely(amdsmi_ret == AMDSMI_STATUS_SUCCESS)) {
-                watch_db->watch_info[gpu_id].pcie_bandwidth =
-                    pcie_info.pcie_metric.pcie_bandwidth;
-            }
-            break;
-        case AGA_GPU_WATCH_ATTR_ID_GPU_UTIL:
-            amdsmi_ret = amdsmi_get_gpu_activity(gpu_handle, &usage_info);
-            if (amdsmi_ret == AMDSMI_STATUS_SUCCESS) {
-                watch_db->watch_info[gpu_id].gpu_util =
-                    usage_info.gfx_activity;
-            }
-            break;
         case AGA_GPU_WATCH_ATTR_ID_GPU_MEMORY_USAGE:
             // not supported
             break;
         case AGA_GPU_WATCH_ATTR_ID_ECC_CORRECT_TOTAL:
+            // NA when no per block read succeeded, so an all-failed refresh is
+            // not reported as a real zero error count
             watch_db->watch_info[gpu_id].total_correctable_errors =
-                total_correctable_count;
+                ecc_read_succeeded ? total_correctable_count : UINT64_MAX;
             break;
         case AGA_GPU_WATCH_ATTR_ID_ECC_UNCORRECT_TOTAL:
             watch_db->watch_info[gpu_id].total_uncorrectable_errors =
-                total_uncorrectable_count;
+                ecc_read_succeeded ? total_uncorrectable_count : UINT64_MAX;
             break;
         case AGA_GPU_WATCH_ATTR_ID_XGMI_0_NOP_TX:
         case AGA_GPU_WATCH_ATTR_ID_XGMI_0_REQ_TX:
@@ -411,6 +340,9 @@ smi_state::smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
             break;
         }
     }
+    if (refresh_slow) {
+        slow_cache_[gpu_id] = watch_db->watch_info[gpu_id];
+    }
     return SDK_RET_OK;
 }
 
@@ -418,6 +350,7 @@ smi_state::smi_watcher_update_all_watch_fields_(uint32_t gpu_id,
 typedef struct watcher_walk_ctxt_s {
     smi_state           *state;
     aga_gpu_watch_db_t  *watch_db;
+    bool                refresh_slow;
 } watcher_walk_ctxt_t;
 
 /// walk callback: for each gpu_entry, re-resolve the live amdsmi handle
@@ -443,13 +376,14 @@ watcher_walk_cb_ (void *obj, void *ctxt)
         return false;    // continue walk; skip this gpu this tick
     }
     wctx->state->smi_watcher_update_all_watch_fields_(
-        e->id(), live_handle, wctx->watch_db);
+        e->id(), live_handle, wctx->watch_db, wctx->refresh_slow);
     return false;
 }
 
 sdk_ret_t
-smi_state::watcher_update_watch_db(aga_gpu_watch_db_t *watch_db) {
-    watcher_walk_ctxt_t ctxt = { this, watch_db };
+smi_state::watcher_update_watch_db(aga_gpu_watch_db_t *watch_db,
+                                   bool refresh_slow) {
+    watcher_walk_ctxt_t ctxt = { this, watch_db, refresh_slow };
 
     // acquire amdsmi session if in lazy init mode; the session is held only
     // for the duration of the tick, then released so /dev/gim-smi0 can be
@@ -525,10 +459,13 @@ sdk_ret_t
 smi_state::gpu_watch_notify_subscribers(void) {
     sdk_ret_t ret;
     aga_obj_key_t key;
-    aga_gpu_watch_info_t info;
     aga_gpu_watch_client_ctxt_t *client_ctxt;
     gpu_watch_subscriber_info_t inactive_subscriber;
     vector<gpu_watch_subscriber_info_t> inactive_subscribers;
+    // heap-allocated: large struct (AGA_MAX_GPU x AGA_GPU_WATCH_ATTRS_MAX
+    // array-valued attrs) would overflow the thread stack at the current cap
+    std::unique_ptr<aga_gpu_watch_info_t> info_holder(new aga_gpu_watch_info_t());
+    aga_gpu_watch_info_t &info = *info_holder;
 
     for (auto& it : gpu_watch_subscriber_db_.gpu_watch_map) {
         key = it.first;
@@ -558,16 +495,34 @@ static void
 watch_timer_cb_ (event::timer_t *timer)
 {
     sdk_ret_t ret;
+    bool refresh_slow;
     aga_task_spec_t task_spec = {};
-    static uint16_t timer_ticks = 0;
+    static uint16_t fast_ticks = 0;
+    static uint16_t slow_ticks = 0;
+    static bool slow_primed = false;
 
     // only start updating watch fields once at least one client has subscribed
     // to a watch group
     if (!g_smi_state.any_watch_group_subscribed()) {
         return;
     }
+    // the timer fires every AGA_WATCHER_INTERVAL seconds; sample the fast tier
+    // once per fast period and the slow tier once per slow period
+    fast_ticks += uint16_t(AGA_WATCHER_INTERVAL);
+    slow_ticks += uint16_t(AGA_WATCHER_INTERVAL);
+    if (fast_ticks < smi_watch_fast_period()) {
+        return;
+    }
+    fast_ticks = 0;
+    // force a slow refresh on the very first published sample, else counters
+    // would be reported as zero until the first slow period elapses
+    refresh_slow = !slow_primed || (slow_ticks >= smi_watch_slow_period());
+    if (refresh_slow) {
+        slow_ticks = 0;
+        slow_primed = true;
+    }
     // get latest values of all watch fields
-    g_smi_state.watcher_update_watch_db(&task_spec.watch_db);
+    g_smi_state.watcher_update_watch_db(&task_spec.watch_db, refresh_slow);
 
     // post task to api thread
     task_spec.task = AGA_TASK_GPU_WATCH_DB_UPDATE;
@@ -576,13 +531,7 @@ watch_timer_cb_ (event::timer_t *timer)
         AGA_TRACE_ERR("Failed to create GPU watch db update task, err {}",
                       ret());
     }
-    // notify the gpu watch subscribers with latest stats once in every
-    // <AGA_WATCHER_GPU_WATCH_UPDATE_FREQ> seconds
-    timer_ticks += uint16_t(AGA_WATCHER_INTERVAL);
-    if (timer_ticks >= AGA_WATCHER_GPU_WATCH_UPDATE_FREQ) {
-        timer_ticks = 0;
-        g_smi_state.gpu_watch_notify_subscribers();
-    }
+    g_smi_state.gpu_watch_notify_subscribers();
 }
 
 /// \brief process an gpu watch subscribe request from client
