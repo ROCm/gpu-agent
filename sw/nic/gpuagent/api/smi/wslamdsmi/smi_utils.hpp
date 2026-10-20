@@ -618,10 +618,10 @@ static inline void
 smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
                                        amdsmi_gpu_metrics_t *m)
 {
-    amdsmi_engine_usage_t activity = {};
-    amdsmi_power_info_t power = {};
-    amdsmi_clk_info_t gfxclk = {}, socclk = {}, memclk = {};
     int64_t temp = 0;
+    amdsmi_power_info_t power = {};
+    amdsmi_engine_usage_t activity = {};
+    amdsmi_clk_info_t gfxclk = {}, socclk = {}, memclk = {};
 
     // Try amdsmi_get_gpu_activity first (QueryGpuActivity via DXCore PMLog).
     if (m->average_gfx_activity == 0 || m->average_umc_activity == 0) {
