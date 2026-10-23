@@ -205,7 +205,9 @@ jobs:
 
       - name: Build gpuagent-wsl (stub libamd_smi)
         id: build-wsl
+        shell: bash
         run: |
+          set -o pipefail
           make gpuagent_wsl_docker \
             GIT_COMMIT=$(git rev-list -1 HEAD --abbrev-commit) \
             BUILD_DATE=$(date +%Y-%m-%dT%H:%M:%S%z) \
@@ -215,6 +217,7 @@ jobs:
         if: always()
         env:
           BUILD_WSL_OUTCOME: ${{ steps.build-wsl.outcome }}
+        shell: bash
         run: |
           BIN=sw/nic/build/x86_64/sim/bin
           {
@@ -233,6 +236,7 @@ jobs:
               echo "| gpuagent-wsl | — | **MISSING** |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          [ -f "$BIN/gpuagent-wsl" ] || { echo "gpuagent-wsl binary not found — build failed"; exit 1; }
 
       - name: Upload gpuagent-wsl
         if: always()

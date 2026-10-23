@@ -77,7 +77,7 @@ gpuagent_wsl:
 # satisfies the linker without requiring rocdxg-amd-smi-lib on the host.
 # The resulting binary will not run (stub returns NOT_SUPPORTED everywhere)
 # but this target verifies compile + link cleanly.
-WSL_STUB_DIR := /opt/rocm-wsl/lib
+WSL_STUB_DIR := $(CONTAINER_WORKDIR)/sw/nic/build/wsl-stub
 WSL_STUB_SRC := $(CONTAINER_WORKDIR)/tools/ci/amdsmi_stub.c
 .PHONY: gpuagent_wsl_docker
 gpuagent_wsl_docker:

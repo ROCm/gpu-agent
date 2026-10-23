@@ -619,6 +619,7 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
                                        amdsmi_gpu_metrics_t *m)
 {
     int64_t temp = 0;
+    bool any_field_populated;
     amdsmi_power_info_t power = {};
     amdsmi_engine_usage_t activity = {};
     amdsmi_clk_info_t gfxclk = {}, socclk = {}, memclk = {};
@@ -709,34 +710,28 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
         }
     }
 
-    // Voltage — try all three sensors; bare-metal Linux on most drivers.
-    if (m->voltage_soc == 0) {
-        int64_t v = 0;
-        if (amdsmi_get_gpu_volt_metric(gpu_handle,
-                AMDSMI_VOLT_TYPE_VDDGFX, AMDSMI_VOLT_CURRENT, &v) ==
-                AMDSMI_STATUS_SUCCESS && v > 0) {
-            m->voltage_soc = static_cast<uint16_t>(v > 0xFFFF ? 0xFFFF : v);
-        }
-    }
+    // Voltage — librocdxg exposes only the VDDGFX sensor; fill voltage_gfx from
+    // it. voltage_soc has no matching sensor in the WSL driver (librocdxg has no
+    // VDDSOC); leave it at NA (0) rather than reporting GFX voltage under the
+    // wrong label.
     if (m->voltage_gfx == 0) {
         int64_t v = 0;
         if (amdsmi_get_gpu_volt_metric(gpu_handle,
-                AMDSMI_VOLT_TYPE_VDDGFX, AMDSMI_VOLT_AVERAGE, &v) ==
+                AMDSMI_VOLT_TYPE_VDDGFX, AMDSMI_VOLT_CURRENT, &v) ==
                 AMDSMI_STATUS_SUCCESS && v > 0) {
             m->voltage_gfx = static_cast<uint16_t>(v > 0xFFFF ? 0xFFFF : v);
         }
     }
 
-    // PCIe replay counter and instantaneous bandwidth from amdsmi_get_pcie_info.
-    // These two have real implementations in librocdxg (QueryPCIeInfo).
+    // PCIe replay counter from amdsmi_get_pcie_info (QueryPCIeInfo in librocdxg).
+    // pcie_bandwidth_acc is an accumulated byte counter; pcie_metric.pcie_bandwidth
+    // is an instantaneous Mb/s reading — units and semantics differ, so leave
+    // pcie_bandwidth_acc at NA rather than filling it with the wrong value.
     {
         amdsmi_pcie_info_t pcie = {};
         if (amdsmi_get_pcie_info(gpu_handle, &pcie) == AMDSMI_STATUS_SUCCESS) {
             if (m->pcie_replay_count_acc == 0)
                 m->pcie_replay_count_acc = pcie.pcie_metric.pcie_replay_count;
-            if (m->pcie_bandwidth_acc == 0)
-                m->pcie_bandwidth_acc =
-                    static_cast<uint64_t>(pcie.pcie_metric.pcie_bandwidth);
         }
     }
 
@@ -754,7 +749,7 @@ smi_wsl_fill_metrics_from_individual_ (aga_gpu_handle_t gpu_handle,
     // them in this test would mark a wholly-unsupported metrics struct valid,
     // causing callers to publish zero-initialized fields (temperature, fan,
     // voltage, PCIe) as real data rather than AMD SMI NA sentinels.
-    bool any_field_populated =
+    any_field_populated =
         m->current_socket_power != 0 ||
         m->current_gfxclk       != 0 ||
         m->current_socclk       != 0 ||
