@@ -2165,7 +2165,6 @@ smi_state::spawn_event_monitor_thread_(void) {
     return SDK_RET_OK;
 }
 
-sdk_ret_t
 static bool
 wsl2_detected (void)
 {
@@ -2173,6 +2172,7 @@ wsl2_detected (void)
     return (stat("/dev/dxg", &st) == 0) && (stat("/dev/kfd", &st) != 0);
 }
 
+sdk_ret_t
 smi_state::init(aga_api_init_params_t *init_params) {
     if (!wsl2_detected()) {
         AGA_TRACE_ERR("WSL2 not detected (/dev/dxg absent or /dev/kfd present); "
