@@ -1,0 +1,1 @@
+1.2.2 (from librocdxg/rocm-systems, installed at /opt/rocm-wsl)
