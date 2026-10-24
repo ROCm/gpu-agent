@@ -203,6 +203,11 @@ jobs:
           name: build-libs
           path: sw/nic/build
 
+      - name: Restore execute bits on downloaded binaries
+        shell: bash
+        run: |
+          find sw/nic/build/bin sw/nic/build/x86_64/sim/bin -type f | xargs chmod +x 2>/dev/null || true
+
       - name: Build gpuagent-wsl (stub libamd_smi)
         id: build-wsl
         shell: bash
