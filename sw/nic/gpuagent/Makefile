@@ -200,7 +200,6 @@ $(TARGET)_gim: build-libs gogo-protos gen-protos $(OBJ_GIM)
 $(TARGET)_wsl: build-libs gogo-protos gen-protos $(OBJ_WSL)
 	mkdir -p $(BLD_BIN_DIR)
 	$(CC) $(OBJ_WSL) $(LDFLAGS_WSL_SMI) -o $(BLD_BIN_DIR)/$(TARGET)-wsl
-	${MAKE} gpuctl
 
 .PHONY: mod
 mod:
