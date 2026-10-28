@@ -74,7 +74,7 @@ jobs:
 
       - name: Upload Trivy results
         if: always()
-        uses: github/codeql-action/upload-sarif@cee97f86b972a3ded3c58d04148362b193ddc518 # v4.38.3
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: trivy-results.sarif
           category: trivy-gpuctl
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload gpuagent
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gpuagent
           path: sw/nic/build/x86_64/sim/bin/gpuagent
@@ -115,7 +115,7 @@ jobs:
 
       - name: Upload gpuagent_gim
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gpuagent_gim
           path: sw/nic/build/x86_64/sim/bin/gpuagent_gim
@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload gpuagent_mock
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gpuagent_mock
           path: sw/nic/build/x86_64/sim/bin/gpuagent_mock
@@ -133,7 +133,7 @@ jobs:
 
       - name: Upload gpuctl
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gpuctl
           path: sw/nic/build/x86_64/sim/bin/gpuctl
@@ -142,7 +142,7 @@ jobs:
 
       - name: Upload build libs tree
         if: success()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: build-libs
           path: sw/nic/build
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload build log
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: build-log
           path: build.log
@@ -198,7 +198,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Download pre-built third-party libs
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: build-libs
           path: sw/nic/build
@@ -245,7 +245,7 @@ jobs:
 
       - name: Upload gpuagent-wsl
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: gpuagent-wsl
           path: sw/nic/build/x86_64/sim/bin/gpuagent-wsl
@@ -254,7 +254,7 @@ jobs:
 
       - name: Upload build-wsl log
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: build-wsl-log
           path: build-wsl.log
