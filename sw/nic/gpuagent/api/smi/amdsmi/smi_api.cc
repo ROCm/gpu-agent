@@ -2284,11 +2284,19 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle,
     // fill the GPU card model
     strncpy(status->card_model, board_info.model_number, AGA_MAX_STR_LEN);
     status->card_model[AGA_MAX_STR_LEN] = '\0';
-    // consumer GPUs leave board_info marketing fields empty; fall back to the
-    // driver-reported market name from asic_info
-    if ((status->card_model[0] == '\0') || (!strcmp(status->card_model, "N/A"))) {
-        amdsmi_ret = amdsmi_get_gpu_asic_info(gpu_handle, &asic_info);
-        if ((amdsmi_ret == AMDSMI_STATUS_SUCCESS) &&
+    // market name is device-id based, so it is present even when the board
+    // FRU fields are blank (e.g. MI350P)
+    amdsmi_ret = amdsmi_get_gpu_asic_info(gpu_handle, &asic_info);
+    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Failed to get asic info for GPU {}, err {}",
+                      gpu_handle, amdsmi_ret);
+    } else {
+        strncpy(status->market_name, asic_info.market_name, AGA_MAX_STR_LEN);
+        status->market_name[AGA_MAX_STR_LEN] = '\0';
+        // consumer GPUs leave board_info marketing fields empty; fall back to
+        // the driver-reported market name from asic_info
+        if (((status->card_model[0] == '\0') ||
+             (!strcmp(status->card_model, "N/A"))) &&
             (asic_info.market_name[0] != '\0')) {
             strncpy(status->card_model, asic_info.market_name,
                     AGA_MAX_STR_LEN);

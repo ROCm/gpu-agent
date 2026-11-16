@@ -1635,10 +1635,11 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle_in,
 {
     amdsmi_fw_info_t fw_info;
     amdsmi_status_t amdsmi_ret;
+    amdsmi_asic_info_t asic_info;
     amdsmi_vbios_info_t vbios_info;
+    amdsmi_virtualization_mode_t mode;
     amdsmi_board_info_t board_info = {};
     amdsmi_driver_info_t driver_info = {};
-    amdsmi_virtualization_mode_t mode;
 
     AGA_SMI_SESSION_GUARD(gpu_key, gpu_handle_in);
 
@@ -1670,6 +1671,15 @@ smi_gpu_init_immutable_attrs (aga_gpu_handle_t gpu_handle_in,
     memcpy(status->card_vendor, board_info.manufacturer_name, AGA_MAX_STR_LEN);
     // fill the GPU card model
     memcpy(status->card_model, board_info.model_number, AGA_MAX_STR_LEN);
+    // fill the device-id based market name
+    amdsmi_ret = amdsmi_get_gpu_asic_info(gpu_handle, &asic_info);
+    if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {
+        AGA_TRACE_ERR("Failed to get asic info for GPU {}, err {}",
+                      gpu_handle, amdsmi_ret);
+    } else {
+        strncpy(status->market_name, asic_info.market_name, AGA_MAX_STR_LEN);
+        status->market_name[AGA_MAX_STR_LEN] = '\0';
+    }
     // fill the driver version
     amdsmi_ret = amdsmi_get_gpu_driver_info(gpu_handle, &driver_info);
     if (unlikely(amdsmi_ret != AMDSMI_STATUS_SUCCESS)) {

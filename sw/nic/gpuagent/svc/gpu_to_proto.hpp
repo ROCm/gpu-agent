@@ -416,6 +416,7 @@ aga_gpu_api_status_to_proto (GPUStatus *proto_status,
     proto_status->set_cardmodel(status->card_model);
     proto_status->set_cardvendor(status->card_vendor);
     proto_status->set_cardsku(status->card_sku);
+    proto_status->set_marketname(status->market_name);
     proto_status->set_driverversion(status->driver_version);
     proto_status->set_vbiosversion(status->vbios_version);
     proto_status->set_vbiospartnumber(status->vbios_part_number);
