@@ -227,6 +227,7 @@ smi_gpu_fill_status (aga_gpu_handle_t gpu_handle,
             AGA_MAX_STR_LEN);
     // fill the GPU card model
     strncpy(status->card_model, "102-G30211-00", AGA_MAX_STR_LEN);
+    strncpy(status->market_name, "AMD Instinct MI300X", AGA_MAX_STR_LEN);
     // fill the GPU vendor information
     strncpy(status->card_vendor, "Advanced Micro Devices, Inc. [AMD/ATI]",
             AGA_MAX_STR_LEN);

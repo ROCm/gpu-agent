@@ -566,6 +566,8 @@ typedef struct aga_gpu_status_s {
     aga_gpu_virtualization_mode_t virtualization_mode;
     // GPU process status
     aga_gpu_process_info_t process_info[AGA_GPU_MAX_PROCESS_PER_DEVICE];
+    /// device-id based product name from asic info
+    char market_name[AGA_MAX_STR_LEN + 1];
 } aga_gpu_status_t;
 
 /// \brief GPU PCIe statistics

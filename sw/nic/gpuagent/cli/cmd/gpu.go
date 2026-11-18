@@ -905,6 +905,9 @@ func printGPUStatus(gpu *aga.GPU, statusOnly bool) {
 	if strings.TrimSpace(status.GetCardSKU()) != "" {
 		fmt.Printf(indent+"%-38s : %s\n", "Card SKU", status.GetCardSKU())
 	}
+	if strings.TrimSpace(status.GetMarketName()) != "" {
+		fmt.Printf(indent+"%-38s : %s\n", "Market name", status.GetMarketName())
+	}
 	if strings.TrimSpace(status.GetDriverVersion()) != "" {
 		fmt.Printf(indent+"%-38s : %s\n", "Driver version",
 			status.GetDriverVersion())
